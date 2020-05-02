@@ -17,10 +17,12 @@ import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.context.support.SpringBeanAutowiringSupport;
 
-import com.oapps.osync.CurrentContext;
 import com.oapps.osync.entity.AuthorizationEntity;
 import com.oapps.osync.repository.AuthorizationRepo;
 
+import lombok.extern.java.Log;
+
+@Log
 public class SecurityFilter implements Filter {
 
 	@Autowired
@@ -36,7 +38,6 @@ public class SecurityFilter implements Filter {
 	}
 
 	@Override
-	@org.springframework.transaction.annotation.Transactional
 	public void doFilter(ServletRequest srequest, ServletResponse sresponse, FilterChain chain)
 			throws IOException, ServletException {
 		try {
@@ -71,15 +72,18 @@ public class SecurityFilter implements Filter {
 			}
 
 			if (!isAuthorized) {
+				log.info("Not authorized");
 				response.getWriter().write("Not authorized");
 				response.setStatus(HttpServletResponse.SC_FORBIDDEN);
 				return;
 			}
 			if (isAdminUrl && !isAdmin) {
+				log.info("Not authorized.. Not an admin");
 				response.getWriter().write("Not authorized");
 				response.setStatus(HttpServletResponse.SC_FORBIDDEN);
 				return;
 			}
+			log.info("Auth success");
 			chain.doFilter(srequest, sresponse);
 		} finally {
 			CurrentContext.clear();
