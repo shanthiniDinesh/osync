@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.oapps.osync.entity.UniqueValuesMapEntity;
 
-public interface UniqueValuesMapRepo extends JpaRepository<UniqueValuesMapEntity, Integer> {
+public interface UniqueValuesMapRepo extends JpaRepository<UniqueValuesMapEntity, Long> {
 
 	UniqueValuesMapEntity findByIntegIdAndLeftUniqueValue(Long integId, String leftUniqueValue);
 

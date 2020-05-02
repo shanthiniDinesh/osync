@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.oapps.osync.entity.FieldMapEntity;
 
-public interface FieldMapRepository extends JpaRepository<FieldMapEntity, Integer> {
+public interface FieldMapRepository extends JpaRepository<FieldMapEntity, Long> {
 
-	List<FieldMapEntity> findByOsyncIdAndIntegId(Long osyncId, Long integId);
+	List<FieldMapEntity> findAllByIntegId(Long integId);
 }
