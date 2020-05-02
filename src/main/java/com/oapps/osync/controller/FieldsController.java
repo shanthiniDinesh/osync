@@ -13,14 +13,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.oapps.osync.Controller;
 import com.oapps.osync.ControllerRepo;
-import com.oapps.osync.entity.EntityMap;
 import com.oapps.osync.entity.FieldMap;
+import com.oapps.osync.entity.IntegrationPropsEntity;
 import com.oapps.osync.entity.UniqueValuesMap;
 import com.oapps.osync.fields.Fields;
 import com.oapps.osync.fields.Record;
 import com.oapps.osync.fields.RecordSet;
-import com.oapps.osync.repository.EntityMapRepository;
 import com.oapps.osync.repository.FieldMapRepository;
+import com.oapps.osync.repository.IntegrationPropsRepository;
 import com.oapps.osync.repository.UniqueValuesMapRepo;
 
 import lombok.extern.java.Log;
@@ -30,7 +30,7 @@ import lombok.extern.java.Log;
 public class FieldsController {
 
 	@Autowired
-	EntityMapRepository entityMapRepo;
+	IntegrationPropsRepository intPropsRepo;
 
 	@Autowired
 	FieldMapRepository fieldMapRepo;
@@ -39,53 +39,83 @@ public class FieldsController {
 	UniqueValuesMapRepo uvMapRepo;
 
 	@GetMapping(path = "/fields")
-	public @ResponseBody Fields getAllFields(@RequestParam String type, @RequestParam String integration) {
-		return ControllerRepo.getInstance(type).getFields(integration);
+	public @ResponseBody Fields getAllFields(@RequestParam String type, @RequestParam("module") String moduleName) {
+		return ControllerRepo.getInstance(type, moduleName).getFields();
 	}
 
 	@GetMapping(path = "/fields/sync")
 	public @ResponseBody String sync(@RequestParam(name = "account") String accountId) {
-		EntityMap entity = entityMapRepo.findByAccountId(accountId);
+		IntegrationPropsEntity intProps = intPropsRepo.findByAccountId(accountId);
 		List<FieldMap> fieldMaps = fieldMapRepo.findByAccountId(accountId);
 
-		Controller left = ControllerRepo.getInstance(entity.getLeftControllerName());
-		Controller right = ControllerRepo.getInstance(entity.getRightControllerName());
+		Controller left = ControllerRepo.getInstance(intProps.getLeftControllerName(), intProps.getLeftModuleName());
+		Controller right = ControllerRepo.getInstance(intProps.getRightControllerName(), intProps.getRightModuleName());
 
 		RecordSet leftRecordSet = left.fetchUpdatedRecords(accountId, System.currentTimeMillis() - (10 * 60 * 1000l));
-		RecordSet rightRecordSet = right.fetchUpdatedRecords(accountId, System.currentTimeMillis() - (10 * 60 * 1000l));
+		
 
 		leftRecordSet.fillLeftUniqueValueMap(uvMapRepo, accountId);
+
 		
-		rightRecordSet.fillRightUniqueValueMap(uvMapRepo, accountId);
 
-		RecordSet rightRecordsToCreate = RecordSet.of(entity.getRightControllerName(), entity.getRightUniqueColumn());
-		RecordSet leftRecordsToCreate = RecordSet.of(entity.getLeftControllerName(), entity.getLeftUniqueColumn());
+		RecordSet rightRecordsToCreate = RecordSet.init(intProps.getRightControllerName(),
+				intProps.getRightPrimaryColumn());
+		RecordSet leftRecordsToCreate = RecordSet.init(intProps.getLeftControllerName(),
+				intProps.getLeftPrimaryColumn());
 
-		RecordSet rightRecordsToUpdate = RecordSet.of(entity.getRightControllerName(), entity.getRightUniqueColumn());
-		RecordSet leftRecordsToUpdate = RecordSet.of(entity.getLeftControllerName(), entity.getLeftUniqueColumn());
+		RecordSet rightRecordsToUpdate = RecordSet.init(intProps.getRightControllerName(),
+				intProps.getRightPrimaryColumn());
+		RecordSet leftRecordsToUpdate = RecordSet.init(intProps.getLeftControllerName(),
+				intProps.getLeftPrimaryColumn());
 
 		for (Record leftRecord : leftRecordSet) {
 
-			if (leftRecord.getMappedRecordUniqueValue() == null) {
-				Record record = rightRecordsToCreate.createRecordObject();
-				record = fillRecord(record, leftRecord, fieldMaps, true);
-				record.setMappedRecordUniqueValue(leftRecord.getUniqueValue());
-			} else {
+			if (intProps.isSyncRecordsWithEmail() && leftRecord.getValue(intProps.getLeftEmailColumn()) == null) {
+				// do not sync the records without email
+				continue;
+			}
+			boolean isUpdate = leftRecord.getMappedRecordUniqueValue() != null;
+
+			if (leftRecord.getMappedRecordUniqueValue() == null && intProps.isLookupUniqueColumn()) {
+				isUpdate = findMatchedRecord(accountId, right, leftRecord, isUpdate, intProps.getLeftUniqueColumn(), true);
+			}
+
+			if (isUpdate) {
+				// update now
 				Record record = rightRecordsToUpdate.add(leftRecord.getMappedRecordUniqueValue());
 				record = fillRecord(record, leftRecord, fieldMaps, true);
 				record.setMappedRecordUniqueValue(leftRecord.getUniqueValue());
+			} else {
+				// create now
+				Record record = rightRecordsToCreate.createEmptyObject();
+				record = fillRecord(record, leftRecord, fieldMaps, true);
+				record.setMappedRecordUniqueValue(leftRecord.getUniqueValue());
 			}
-
 		}
 
+		RecordSet rightRecordSet = right.fetchUpdatedRecords(accountId, System.currentTimeMillis() - (10 * 60 * 1000l));
+		rightRecordSet.fillRightUniqueValueMap(uvMapRepo, accountId);
+		
 		for (Record rightRecord : rightRecordSet) {
 
-			if (rightRecord.getMappedRecordUniqueValue() == null) {
-				Record record = leftRecordsToCreate.createRecordObject();
+			if (intProps.isSyncRecordsWithEmail() && rightRecord.getValue(intProps.getRightEmailColumn()) == null) {
+				// do not sync the records without email
+				continue;
+			}
+			boolean isUpdate = rightRecord.getMappedRecordUniqueValue() != null;
+
+			if (rightRecord.getMappedRecordUniqueValue() == null && intProps.isLookupUniqueColumn()) {
+				isUpdate = findMatchedRecord(accountId, left, rightRecord, isUpdate, intProps.getRightUniqueColumn(), false);
+			}
+
+			if (isUpdate) {
+				// update now
+				Record record = leftRecordsToUpdate.add(rightRecord.getMappedRecordUniqueValue());
 				record = fillRecord(record, rightRecord, fieldMaps, false);
 				record.setMappedRecordUniqueValue(rightRecord.getUniqueValue());
 			} else {
-				Record record = leftRecordsToUpdate.add(rightRecord.getMappedRecordUniqueValue());
+				// create now
+				Record record = leftRecordsToCreate.createEmptyObject();
 				record = fillRecord(record, rightRecord, fieldMaps, false);
 				record.setMappedRecordUniqueValue(rightRecord.getUniqueValue());
 			}
@@ -100,8 +130,11 @@ public class FieldsController {
 		// field validation while copying
 
 		if (leftRecordsToCreate.length() > 0) {
+			for (Record record : leftRecordsToCreate) {
+				log.info("Creating records :" + record);
+			}
 			HashMap<String, String> leftUniqueValueMap = left.createNewRecords(leftRecordsToCreate,
-					entity.getRightControllerName());
+					intProps.getRightControllerName());
 
 			List<UniqueValuesMap> list = new ArrayList<UniqueValuesMap>();
 			for (Entry<String, String> record : leftUniqueValueMap.entrySet()) {
@@ -113,11 +146,14 @@ public class FieldsController {
 			}
 			uvMapRepo.saveAll(list);
 		}
-		
-		if(rightRecordsToCreate.length() > 0 ) {
+
+		if (rightRecordsToCreate.length() > 0) {
+			for (Record record : rightRecordsToCreate) {
+				log.info("Creating records :" + record);
+			}
 			HashMap<String, String> rightUniqueValueMap = right.createNewRecords(rightRecordsToCreate,
-					entity.getLeftControllerName());
-			
+					intProps.getLeftControllerName());
+
 			List<UniqueValuesMap> list = new ArrayList<UniqueValuesMap>();
 			for (Entry<String, String> record : rightUniqueValueMap.entrySet()) {
 				UniqueValuesMap uvMap = new UniqueValuesMap();
@@ -130,13 +166,12 @@ public class FieldsController {
 			uvMapRepo.saveAll(list);
 		}
 
-		
 		if (leftRecordsToUpdate.length() > 0) {
-			left.updateRecords(leftRecordsToUpdate, entity.getRightControllerName());
+			left.updateRecords(leftRecordsToUpdate, intProps.getRightControllerName());
 		}
 
 		if (rightRecordsToUpdate.length() > 0) {
-			right.updateRecords(rightRecordsToUpdate, entity.getLeftControllerName());
+			right.updateRecords(rightRecordsToUpdate, intProps.getLeftControllerName());
 		}
 
 		/*
@@ -164,6 +199,33 @@ public class FieldsController {
 		 */
 
 		return null;
+	}
+
+	private boolean findMatchedRecord(String accountId, Controller controller, Record record, boolean isUpdate,
+			String uniqueColumn, boolean isLeftToRight) {
+		// if (record.getMappedRecordUniqueValue() == null &&
+		// intProps.isLookupUniqueColumn()) {
+		String uniqueValue = record.getValue(uniqueColumn).toString();
+		if (uniqueValue != null && !uniqueValue.trim().isEmpty() && !uniqueValue.equals("null")) {
+			Record matchedRecord = controller.getMatchedRecord(uniqueValue);
+			if (matchedRecord != null) {
+				// it is present, create a uvMap and mark it as record to update
+				UniqueValuesMap uniqueValuesMap = new UniqueValuesMap();
+				uniqueValuesMap.setAccountId(accountId);
+				if (isLeftToRight) {
+					uniqueValuesMap.setLeftUniqueValue(record.getUniqueValue());
+					uniqueValuesMap.setRightUniqueValue(matchedRecord.getUniqueValue());
+				} else {
+					uniqueValuesMap.setRightUniqueValue(record.getUniqueValue());
+					uniqueValuesMap.setLeftUniqueValue(matchedRecord.getUniqueValue());
+				}
+				uvMapRepo.save(uniqueValuesMap);
+
+				record.setMappedRecordUniqueValue(matchedRecord.getUniqueValue());
+				isUpdate = true;
+			}
+		}
+		return isUpdate;
 	}
 
 	private Record fillRecord(Record destRecord, Record srcRecord, List<FieldMap> fieldMaps, boolean isLeftToRight) {

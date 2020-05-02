@@ -4,6 +4,7 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.Table;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -11,30 +12,28 @@ import lombok.ToString;
 
 @Entity
 @ToString
-public class EntityMap {
+@Table(name = "DefaultField")
+public class DefaultFieldEntity {
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
 	@Getter
 	@Setter
-	private Integer id;
+	private Long defaultFieldId;
 
 	@Getter
 	@Setter
-	private String accountId;
+	private Long serviceId;
 
 	@Getter
 	@Setter
-	private String leftControllerName;
+	private Long moduleId;
 
 	@Getter
 	@Setter
-	private String rightControllerName;
+	private String columnName;
 
 	@Getter
 	@Setter
-	private String leftUniqueColumn;
+	private String columnType;
 
-	@Getter
-	@Setter
-	private String rightUniqueColumn;
 }
