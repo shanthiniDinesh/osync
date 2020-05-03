@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.oapps.osync.Controller;
+import com.oapps.osync.controller.Controller;
 import com.oapps.osync.entity.FieldMapEntity;
 import com.oapps.osync.fields.Fields;
 import com.oapps.osync.fields.Record;

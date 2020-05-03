@@ -17,14 +17,15 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.oapps.osync.ControllerRepo;
-import com.oapps.osync.CurrentContext;
+import com.oapps.osync.controller.ControllerRepo;
 import com.oapps.osync.entity.AccountInfoEntity;
 import com.oapps.osync.entity.DefaultFieldEntity;
 import com.oapps.osync.entity.DefaultFieldMapEntity;
 import com.oapps.osync.entity.FieldMapEntity;
 import com.oapps.osync.entity.IntegrationPropsEntity;
+import com.oapps.osync.entity.ModuleInfoEntity;
 import com.oapps.osync.entity.ServiceInfoEntity;
+import com.oapps.osync.entity.SyncLogEntity;
 import com.oapps.osync.fields.Fields;
 import com.oapps.osync.repository.AccountInfoRepository;
 import com.oapps.osync.repository.DefaultFieldsMappingRepo;
@@ -32,6 +33,9 @@ import com.oapps.osync.repository.DefaultFieldsRepo;
 import com.oapps.osync.repository.FieldMapRepository;
 import com.oapps.osync.repository.IntegrationPropsRepository;
 import com.oapps.osync.repository.ServiceInfoRepository;
+import com.oapps.osync.security.CurrentContext;
+import com.oapps.osync.service.IntegrationService;
+import com.oapps.osync.service.OsyncException;
 import com.oapps.osync.util.IntegrationResponse;
 import com.oapps.osync.util.OSyncAuthorizerUtil;
 
@@ -61,6 +65,15 @@ public class IntegrationController {
 	@Autowired
 	DefaultFieldsMappingRepo defaultFieldsMapRepo;
 
+	@Autowired
+	IntegrationService intService;
+
+	@GetMapping(path = "/testsync")
+	public @ResponseBody SyncLogEntity testSync(@RequestParam("integ_id") Long integId) throws OsyncException {
+		log.info("Test sync started...");
+		return intService.sync(integId);
+	}
+
 	@GetMapping(path = "/api/v1/default-fields")
 	public @ResponseBody List<DefaultFieldEntity> getDefaultFields(@RequestParam("service_id") Long serviceId,
 			@RequestParam("module_id") Long moduleId) {
@@ -70,11 +83,12 @@ public class IntegrationController {
 	@GetMapping(path = "/api/v1/all-fields")
 	public @ResponseBody Fields getAllFields(@RequestParam("service_id") Long serviceId,
 			@RequestParam("module_id") Long moduleId) {
-		if (serviceId % 2 == 1) {
-			return ControllerRepo.getInstance("zohocrm-contacts").getFields("12");
-		} else {
-			return ControllerRepo.getInstance("zohocrm-contacts").getFields("12");
+		ServiceInfoEntity serviceInfo = intService.getServiceInfo(serviceId);
+		ModuleInfoEntity moduleInfo = intService.getModuleInfo(moduleId);
+		if (serviceInfo == null || moduleInfo == null) {
+			return Fields.of();
 		}
+		return ControllerRepo.getInstance(serviceInfo.getName(), moduleInfo.getName()).getFields();
 	}
 
 	@GetMapping(path = "/api/v1/default-fields-map")

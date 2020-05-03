@@ -3,9 +3,8 @@ package com.oapps.osync.repository;
 import org.springframework.data.repository.CrudRepository;
 
 import com.oapps.osync.entity.ModuleInfoEntity;
-import com.oapps.osync.entity.ServiceInfoEntity;
 
-public interface ModuleInfoRepository extends CrudRepository<ModuleInfoEntity, Integer> {
+public interface ModuleInfoRepository extends CrudRepository<ModuleInfoEntity, Long> {
 
 	ModuleInfoEntity findByModuleId(Long moduleId);
 	

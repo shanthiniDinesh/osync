@@ -3,18 +3,28 @@ package com.oapps.osync.entity;
 import java.util.Date;
 
 import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 
 import org.hibernate.annotations.CreationTimestamp;
 
+import com.oapps.osync.service.OsyncEnums.IntegrationStatus;
+
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
-public class LogEntity {
+@Entity
+@ToString
+@Table(name = "SyncLog")
+public class SyncLogEntity {
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
 	@Getter
@@ -27,7 +37,22 @@ public class LogEntity {
 
 	@Getter
 	@Setter
-	private Date syncTime;
+	private Long integId;
+
+	@Getter
+	@Setter
+	@Temporal(TemporalType.TIMESTAMP)
+	private Date startTime;
+
+	@Getter
+	@Setter
+	@Temporal(TemporalType.TIMESTAMP)
+	private Date endTime;
+
+	@Getter
+	@Setter
+	@Enumerated(EnumType.STRING)
+	private IntegrationStatus status;
 
 	@Getter
 	@Setter
@@ -36,7 +61,32 @@ public class LogEntity {
 	@Getter
 	@Setter
 	@Column()
+	private Integer leftCountFetched = 0;
+
+	@Getter
+	@Setter
+	@Column()
 	private Integer updatedLeftCount = 0;
+
+	@Getter
+	@Setter
+	@Column()
+	private Integer rightCountFetched = 0;
+
+	@Getter
+	@Setter
+	@Column()
+	private Integer matchedOnUniqueColumn = 0;
+
+	@Getter
+	@Setter
+	@Column()
+	private Integer leftSkippedForEmailColumn = 0;
+
+	@Getter
+	@Setter
+	@Column()
+	private Integer rightSkippedForEmailColumn = 0;
 
 	@Getter
 	@Setter

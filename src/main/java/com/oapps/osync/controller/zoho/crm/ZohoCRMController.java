@@ -212,4 +212,16 @@ public class ZohoCRMController implements Controller {
 		return null;
 	}
 
+	@Override
+	public RecordSet fetchRecords(int startPage, int totalRecords, Long startTime, Long endTime) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public RecordSet getMatchedRecordsByUniqueId(List<String> recordsToFetchRemote) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
 }
