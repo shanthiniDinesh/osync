@@ -7,6 +7,7 @@ import lombok.ToString;
 @Getter
 @Setter
 @ToString
+@Component
 public class AuthorizeParams {
 
 	private String client_id;
