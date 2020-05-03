@@ -1,11 +1,12 @@
 package com.oapps.osync.repository;
 
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.repository.CrudRepository;
 
 import com.oapps.osync.entity.ServiceInfoEntity;
 
 
-public interface ServiceInfoRepository extends CrudRepository<ServiceInfoEntity, Integer> {
+public interface ServiceInfoRepository extends JpaRepository<ServiceInfoEntity, Long> {
 
 	ServiceInfoEntity findByServiceId(Long serviceId);
 	

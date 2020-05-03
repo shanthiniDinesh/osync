@@ -1,11 +1,11 @@
 package com.oapps.osync.service;
 
-import com.oapps.osync.entity.LogEntity;
+import com.oapps.osync.entity.SyncLogEntity;
 import com.oapps.osync.entity.ModuleInfoEntity;
 import com.oapps.osync.entity.ServiceInfoEntity;
 
 public interface IntegrationService {
-	public LogEntity sync(Long integId) throws OsyncException;
+	public SyncLogEntity sync(Long integId) throws OsyncException;
 
 	public ModuleInfoEntity getModuleInfo(Long leftModuleId);
 

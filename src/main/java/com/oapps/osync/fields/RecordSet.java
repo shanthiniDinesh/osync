@@ -1,9 +1,12 @@
 package com.oapps.osync.fields;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 
+import com.oapps.osync.entity.UniqueValuesMapEntity;
 import com.oapps.osync.repository.UniqueValuesMapRepo;
 
 import lombok.Getter;
@@ -11,7 +14,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
-@RequiredArgsConstructor(staticName = "of")
+@RequiredArgsConstructor(staticName = "init")
 public class RecordSet implements Iterable<Record> {
 
 	@Getter
@@ -32,8 +35,8 @@ public class RecordSet implements Iterable<Record> {
 		return record;
 	}
 
-	public Record createRecordObject() {
-		String uniqueValue = "generated-" + (this.length() + 1) + "-" + System.currentTimeMillis();
+	public Record createEmptyObject() {
+		String uniqueValue = "generated-" + (this.count() + 1) + "-" + System.currentTimeMillis();
 		Record record = new Record(uniqueValue);
 		record.setNewRecord(true);
 		recordSets.put(uniqueValue, record);
@@ -44,7 +47,7 @@ public class RecordSet implements Iterable<Record> {
 		return recordSets.get(uniqueValue);
 	}
 
-	public int length() {
+	public int count() {
 		return recordSets.size();
 	}
 
@@ -57,33 +60,41 @@ public class RecordSet implements Iterable<Record> {
 		return recordSets.values();
 	}
 
-	public void fillRightUniqueValueMap(UniqueValuesMapRepo uvMapRepo, String accountId) {
-//		List<String> uniqueIns = new ArrayList<String>();
-//		for (Record record : getAllRecords()) {
-//			uniqueIns.add(record.getUniqueValue());
-//		}
-//		HashMap<String, String> uniqueValues = new HashMap<String, String>();
-//		List<UniqueValuesMap> uniqueValuesMap = uvMapRepo.findByAccountIdAndRightUniqueValueIn(accountId, uniqueIns);
-//		for (UniqueValuesMap uniqueValuesMap2 : uniqueValuesMap) {
-//			uniqueValues.put(uniqueValuesMap2.getRightUniqueValue(), uniqueValuesMap2.getLeftUniqueValue());
-//		}
-//		for (Record record : getAllRecords()) {
-//			record.setMappedRecordUniqueValue(uniqueValues.get(record.getUniqueValue()));
-//		}
+	public void fillRightUniqueValueMap(UniqueValuesMapRepo uvMapRepo, Long integId) {
+		List<String> uniqueIns = new ArrayList<String>();
+		for (Record record : getAllRecords()) {
+			uniqueIns.add(record.getUniqueValue());
+		}
+		HashMap<String, String> uniqueValues = new HashMap<String, String>();
+		List<UniqueValuesMapEntity> uniqueValuesMap = uvMapRepo.findByIntegIdAndRightUniqueValueIn(integId, uniqueIns);
+		for (UniqueValuesMapEntity uniqueValuesMap2 : uniqueValuesMap) {
+			uniqueValues.put(uniqueValuesMap2.getRightUniqueValue(), uniqueValuesMap2.getLeftUniqueValue());
+		}
+		for (Record record : getAllRecords()) {
+			record.setMappedRecordUniqueValue(uniqueValues.get(record.getUniqueValue()));
+		}
 	}
 
-	public void fillLeftUniqueValueMap(UniqueValuesMapRepo uvMapRepo, String accountId) {
-//		List<String> uniqueIns = new ArrayList<String>();
-//		for (Record record : getAllRecords()) {
-//			uniqueIns.add(record.getUniqueValue());
-//		}
-//		HashMap<String, String> uniqueValues = new HashMap<String, String>();
-//		List<UniqueValuesMap> uniqueValuesMap = uvMapRepo.findByAccountIdAndLeftUniqueValueIn(accountId, uniqueIns);
-//		for (UniqueValuesMap uniqueValuesMap2 : uniqueValuesMap) {
-//			uniqueValues.put(uniqueValuesMap2.getLeftUniqueValue(), uniqueValuesMap2.getRightUniqueValue());
-//		}
-//		for (Record record : getAllRecords()) {
-//			record.setMappedRecordUniqueValue(uniqueValues.get(record.getUniqueValue()));
-//		}
+	public void fillLeftUniqueValueMap(UniqueValuesMapRepo uvMapRepo, Long integId) {
+		List<String> uniqueIns = new ArrayList<String>();
+		for (Record record : getAllRecords()) {
+			uniqueIns.add(record.getUniqueValue());
+		}
+		HashMap<String, String> uniqueValues = new HashMap<String, String>();
+		List<UniqueValuesMapEntity> uniqueValuesMap = uvMapRepo.findByIntegIdAndLeftUniqueValueIn(integId, uniqueIns);
+		for (UniqueValuesMapEntity uniqueValuesMap2 : uniqueValuesMap) {
+			uniqueValues.put(uniqueValuesMap2.getLeftUniqueValue(), uniqueValuesMap2.getRightUniqueValue());
+		}
+		for (Record record : getAllRecords()) {
+			record.setMappedRecordUniqueValue(uniqueValues.get(record.getUniqueValue()));
+		}
+	}
+	
+	public void fillUniqueValueMap(UniqueValuesMapRepo uvMapRepo, Long integId, boolean isLeft) {
+		if(isLeft) {
+			fillLeftUniqueValueMap(uvMapRepo, integId);
+		} else {
+			fillRightUniqueValueMap(uvMapRepo, integId);
+		}
 	}
 }

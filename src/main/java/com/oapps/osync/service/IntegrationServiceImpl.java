@@ -1,6 +1,7 @@
 package com.oapps.osync.service;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
@@ -13,18 +14,21 @@ import com.oapps.osync.controller.Controller;
 import com.oapps.osync.controller.ControllerRepo;
 import com.oapps.osync.entity.FieldMapEntity;
 import com.oapps.osync.entity.IntegrationPropsEntity;
-import com.oapps.osync.entity.LogEntity;
+import com.oapps.osync.entity.IntegrationStatusEntity;
 import com.oapps.osync.entity.ModuleInfoEntity;
 import com.oapps.osync.entity.ServiceInfoEntity;
+import com.oapps.osync.entity.SyncLogEntity;
 import com.oapps.osync.entity.UniqueValuesMapEntity;
 import com.oapps.osync.fields.Record;
 import com.oapps.osync.fields.RecordSet;
 import com.oapps.osync.repository.FieldMapRepository;
 import com.oapps.osync.repository.IntegrationPropsRepository;
-import com.oapps.osync.repository.LogEntityRepo;
-import com.oapps.osync.repository.ModuleInfoRepo;
-import com.oapps.osync.repository.ServiceInfoRepo;
+import com.oapps.osync.repository.IntegrationStatusRepository;
+import com.oapps.osync.repository.ModuleInfoRepository;
+import com.oapps.osync.repository.ServiceInfoRepository;
+import com.oapps.osync.repository.SyncLogEntityRepo;
 import com.oapps.osync.repository.UniqueValuesMapRepo;
+import com.oapps.osync.service.OsyncEnums.IntegrationStatus;
 
 import lombok.NonNull;
 import lombok.extern.java.Log;
@@ -34,16 +38,19 @@ import lombok.extern.java.Log;
 public class IntegrationServiceImpl implements IntegrationService {
 
 	@Autowired
-	LogEntityRepo logRepo;
+	SyncLogEntityRepo logRepo;
 
 	@Autowired
 	IntegrationPropsRepository intPropsRepo;
 
 	@Autowired
-	ModuleInfoRepo moduleInfoRepo;
+	IntegrationStatusRepository intStatusRepo;
 
 	@Autowired
-	ServiceInfoRepo serviceInfoRepo;
+	ModuleInfoRepository moduleInfoRepo;
+
+	@Autowired
+	ServiceInfoRepository serviceInfoRepo;
 
 	@Autowired
 	FieldMapRepository fieldMapRepo;
@@ -51,8 +58,110 @@ public class IntegrationServiceImpl implements IntegrationService {
 	@Autowired
 	UniqueValuesMapRepo uvMapRepo;
 
+	public SyncLogEntity sync2(@NonNull Long osyncId, @NonNull Long integId) throws OsyncException {
+		SyncLogEntity logEntity = new SyncLogEntity();
+		Long syncStartTime = System.currentTimeMillis();
+		try {
+			Optional<IntegrationPropsEntity> intPropsOpt = intPropsRepo.findById(integId);
+			if (!intPropsOpt.isPresent()) {
+				throw new OsyncException("Integration ID Not present");
+			}
+			IntegrationPropsEntity intProps = intPropsOpt.get();
+			Optional<IntegrationStatusEntity> intStatus = intStatusRepo.findById(integId);
+			Long startTime = -1l;
+			Long endTime = System.currentTimeMillis();
+			if (!intStatus.isPresent()) {
+				IntegrationStatusEntity status = intStatus.get();
+				if (status.getStatus().equals(IntegrationStatus.COMPLETE)) {
+					startTime = status.getEndTime().getTime();
+				} else if (status.getStatus().equals(IntegrationStatus.RUNNING)) {
+					log.severe("New sync initiated, but old sync still in progress, " + integId + intProps + intStatus);
+					logEntity.setStatus(IntegrationStatus.NOT_STARTED);
+					throw new OsyncException("Sync in progress");
+				} else if (status.getStatus().equals(IntegrationStatus.ERROR)) {
+					log.severe("Old sync ended in error. Please check the status. " + integId + intProps + intStatus);
+					logEntity.setStatus(IntegrationStatus.NOT_STARTED);
+					throw new OsyncException("Old sync ended in error. Please check the status.");
+				}
+			}
+
+			@NonNull
+			ServiceInfoEntity serviceA = getServiceInfo(intProps.getLeftServiceId());
+			@NonNull
+			ModuleInfoEntity moduleA = getModuleInfo(intProps.getLeftModuleId());
+
+			@NonNull
+			ServiceInfoEntity serviceB = getServiceInfo(intProps.getRightServiceId());
+			@NonNull
+			ModuleInfoEntity moduleB = getModuleInfo(intProps.getRightModuleId());
+
+			@NonNull
+			List<FieldMapEntity> fieldMaps = fieldMapRepo.findAllByIntegId(integId);
+
+			@NonNull
+
+			Controller controllerA = getControllerInstance(serviceA.getName(), moduleA.getName());
+			Controller controllerB = getControllerInstance(serviceB.getName(), moduleB.getName());
+			// controller.fetchUpdatedRecords(osyncId, lastSyncTime)
+			int startPage = 1;
+			int totalRecords = 100;
+			boolean isLeft = true;
+
+			RecordSet recordSetA = controllerA.fetchRecords(startPage, totalRecords, startTime, endTime);
+			recordSetA.fillUniqueValueMap(uvMapRepo, integId, isLeft);
+			
+			RecordSet toCreate = RecordSet.init(serviceB.getName(), moduleB.getPrimaryColumn());
+
+			while (recordSetA.count() > 0) {
+				List<String> recordsToFetchRemote = new ArrayList<String>();
+				for (Record record : recordSetA) {
+
+					if (intProps.isSyncRecordsWithEmail() && record.getValue(moduleA.getEmailColumn()) == null) {
+						// do not sync the records without email
+						continue;
+					}
+
+					boolean isUpdate = record.getMappedRecordUniqueValue() != null;
+
+					if (!isUpdate) {
+						// create block
+						if (record.getMappedRecordUniqueValue() == null && intProps.isLookupUniqueColumn()) {
+							isUpdate = findMatchedRecord(intProps, controllerB, record, isUpdate,
+									moduleA.getUniqueColumn(), true);
+						}
+					}
+
+					if (isUpdate) {
+						recordsToFetchRemote.add(record.getMappedRecordUniqueValue());
+					} else {
+						Record nrecord = toCreate.createEmptyObject();
+						nrecord = fillRecord(nrecord, record, fieldMaps, true);
+						nrecord.setMappedRecordUniqueValue(record.getUniqueValue());
+					}
+				}
+				if (recordsToFetchRemote.size() > 0) {
+					RecordSet recordSetB = controllerB.getMatchedRecordsByUniqueId(recordsToFetchRemote);
+					
+					/*
+					 * Record record = rightRecordsToUpdate.add(leftRecord.getMappedRecordUniqueValue());
+				record = fillRecord(record, leftRecord, field	Maps, true);
+				record.setMappedRecordUniqueValue(leftRecord.getUniqueValue());
+					 */
+				}
+			}
+
+		} finally {
+			logEntity.setStartTime(new Date(syncStartTime));
+			logEntity.setEndTime(new Date(System.currentTimeMillis()));
+			logEntity.setIntegId(integId);
+			logEntity.setOsyncId(osyncId);
+			logRepo.save(logEntity);
+		}
+		return null;
+	}
+
 	@Override
-	public LogEntity sync(Long integId) throws OsyncException {
+	public SyncLogEntity sync(Long integId) throws OsyncException {
 
 		Optional<IntegrationPropsEntity> intPropsOpt = intPropsRepo.findById(integId);
 
@@ -64,7 +173,7 @@ public class IntegrationServiceImpl implements IntegrationService {
 		@NonNull
 		Long osyncId = intProps.getOsyncId();
 
-		LogEntity logEntity = new LogEntity();
+		SyncLogEntity logEntity = new SyncLogEntity();
 
 		@NonNull
 		List<FieldMapEntity> fieldMaps = fieldMapRepo.findAllByIntegId(integId);
@@ -87,7 +196,7 @@ public class IntegrationServiceImpl implements IntegrationService {
 		RecordSet leftRecordSet = left.fetchUpdatedRecords(osyncId, System.currentTimeMillis() - (10 * 60 * 1000l));
 		leftRecordSet.fillLeftUniqueValueMap(uvMapRepo, integId);
 
-		logEntity.setLeftCountFetched(leftRecordSet.length());
+		logEntity.setLeftCountFetched(leftRecordSet.count());
 
 		RecordSet leftRecordsToCreate = RecordSet.init(leftServiceInfo.getName(), leftModuleInfo.getPrimaryColumn());
 		RecordSet rightRecordsToCreate = RecordSet.init(rightServiceInfo.getName(), rightModuleInfo.getPrimaryColumn());
@@ -129,7 +238,7 @@ public class IntegrationServiceImpl implements IntegrationService {
 		}
 
 		RecordSet rightRecordSet = right.fetchUpdatedRecords(osyncId, System.currentTimeMillis() - (10 * 60 * 1000l));
-		logEntity.setRightCountFetched(rightRecordSet.length());
+		logEntity.setRightCountFetched(rightRecordSet.count());
 		rightRecordSet.fillRightUniqueValueMap(uvMapRepo, integId);
 
 		for (Record rightRecord : rightRecordSet) {
@@ -170,7 +279,7 @@ public class IntegrationServiceImpl implements IntegrationService {
 		// bulk vs single
 		// field validation while copying
 
-		if (leftRecordsToCreate.length() > 0) {
+		if (leftRecordsToCreate.count() > 0) {
 			for (Record record : leftRecordsToCreate) {
 				log.info("Creating records :" + record);
 			}
@@ -186,11 +295,11 @@ public class IntegrationServiceImpl implements IntegrationService {
 				uvMap.setRightUniqueValue(record.getValue());
 				list.add(uvMap);
 			}
-			logEntity.setCreatedLeftCount(leftRecordsToCreate.length());
+			logEntity.setCreatedLeftCount(leftRecordsToCreate.count());
 			uvMapRepo.saveAll(list);
 		}
 
-		if (rightRecordsToCreate.length() > 0) {
+		if (rightRecordsToCreate.count() > 0) {
 			for (Record record : rightRecordsToCreate) {
 				log.info("Creating records :" + record);
 			}
@@ -206,17 +315,17 @@ public class IntegrationServiceImpl implements IntegrationService {
 				uvMap.setLeftUniqueValue(record.getValue());
 				list.add(uvMap);
 			}
-			logEntity.setCreatedRightCount(rightRecordsToCreate.length());
+			logEntity.setCreatedRightCount(rightRecordsToCreate.count());
 			uvMapRepo.saveAll(list);
 		}
 
-		if (leftRecordsToUpdate.length() > 0) {
-			logEntity.setUpdatedLeftCount(leftRecordsToUpdate.length());
+		if (leftRecordsToUpdate.count() > 0) {
+			logEntity.setUpdatedLeftCount(leftRecordsToUpdate.count());
 			left.updateRecords(leftRecordsToUpdate, rightServiceInfo.getName());
 		}
 
-		if (rightRecordsToUpdate.length() > 0) {
-			logEntity.setUpdatedRightCount(rightRecordsToUpdate.length());
+		if (rightRecordsToUpdate.count() > 0) {
+			logEntity.setUpdatedRightCount(rightRecordsToUpdate.count());
 			right.updateRecords(rightRecordsToUpdate, leftServiceInfo.getName());
 		}
 
