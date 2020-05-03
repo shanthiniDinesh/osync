@@ -28,7 +28,6 @@ public class AuthorizeController {
 
 	//	
 	@GetMapping(path = "/api/v1/redirect",produces = "text/html; charset=utf-8")
-	@Autowired
 	public String redirectHandler(AuthorizeParams authParams) {
 		try {
 			System.out.println(" authParams >>>>>>"+authParams.toString());
