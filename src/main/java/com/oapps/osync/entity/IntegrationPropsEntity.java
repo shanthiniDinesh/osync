@@ -16,6 +16,8 @@ import javax.persistence.Transient;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -38,10 +40,12 @@ public class IntegrationPropsEntity {
 
 	@Getter
 	@Setter
+	@JsonAlias({"left_service_id"})
 	private Long leftServiceId;
 
 	@Getter
 	@Setter
+	@JsonAlias({"right_service_id"})
 	private Long rightServiceId;
 
 	@Getter
@@ -66,11 +70,11 @@ public class IntegrationPropsEntity {
 
 	@Getter
 	@Setter
-	private int status;
+	private int status=1;
 
 	@Getter
 	@Setter
-	private int direction;
+	private int direction=1;
 
 	@Getter
 	@Setter
@@ -83,9 +87,10 @@ public class IntegrationPropsEntity {
 	@Temporal(TemporalType.TIMESTAMP)
 	@UpdateTimestamp
 	private Date modifiedTime;
-
+	
 	@Transient
 	@Getter
 	@Setter
 	private List<FieldMapEntity> fields;
+
 }

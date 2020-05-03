@@ -27,25 +27,26 @@ public class AuthorizationEntity {
 	@Setter
 	@Column(nullable = false)
 	private Long osyncId;
-
+	
 	@Getter
 	@Setter
 	private Long osyncUserId;
-
+	
 	@Getter
 	@Setter
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
 	private Long token_id;
-
+	
 	@Getter
 	@Setter
 	private String token;
-
+	
 	@Getter
 	@Setter
 	private boolean admin = false;
 
+	
 	@Getter
 	@Setter
 	@Temporal(TemporalType.TIMESTAMP)

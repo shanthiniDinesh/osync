@@ -14,6 +14,8 @@ import javax.persistence.TemporalType;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -25,19 +27,20 @@ public class AccountInfoEntity {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
+	@Column(nullable = false, unique = true, updatable = false)
 	@Getter
 	@Setter
-	@Column(nullable = false, unique = true, updatable = false)
 	private Long osyncId;
 	
 	@Getter
 	@Setter
+	@JsonAlias({"left_service_id"})
 	private Long serviceId;
 	
 	@Getter
 	@Setter
+	@JsonAlias({"companyId", "organizationId" })
 	private String remoteIdentifier;
-	
 	
 	@Getter
 	@Setter
@@ -62,4 +65,5 @@ public class AccountInfoEntity {
 	@Temporal(TemporalType.TIMESTAMP)
 	@UpdateTimestamp
 	private Date modifiedTime;
+
 }

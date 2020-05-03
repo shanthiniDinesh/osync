@@ -83,5 +83,6 @@ public class ServiceInfoEntity {
 	@Temporal(TemporalType.TIMESTAMP)
 	@UpdateTimestamp
 	private Date modifiedTime;
+	
 
 }

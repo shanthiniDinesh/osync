@@ -30,6 +30,12 @@ import lombok.extern.java.Log;
 @Log
 public class IntegrationController {
 	@Autowired
+	AccountInfoRepository accountRepo;
+
+	@Autowired
+	ServiceInfoRepository serviceRepo; 
+
+	@Autowired
 	IntegrationPropsRepository intPropsRepo;
 
 	@Autowired
@@ -98,5 +104,112 @@ public class IntegrationController {
 			fieldMapRepo.save(fieldMapEntity);
 		}
 		return getAllFields(integId);
+	}
+
+	@PostMapping(path = "/api/v1/integrate" , consumes = "application/json", produces = "application/json")
+	public IntegrationResponse integrate(@RequestBody String payload) {
+		
+		IntegrationResponse integResponse = new IntegrationResponse();
+		
+		AccountInfoEntity accInfoObject;
+		IntegrationPropsEntity integInfoObj;
+		try {
+			JSONObject payloadJson = new JSONObject(payload);
+			mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+			accInfoObject = mapper.readValue(payload, AccountInfoEntity.class);
+			
+			AccountInfoEntity findByRemoteIdentifier = accountRepo.findTopByRemoteIdentifierAndEmail(accInfoObject.getRemoteIdentifier(), accInfoObject.getEmail());
+			
+			if (findByRemoteIdentifier == null) {
+				accInfoObject = accountRepo.save(accInfoObject);
+			} else {
+				accInfoObject = findByRemoteIdentifier;
+			}
+			
+			
+			payloadJson.put("osyncId", accInfoObject.getOsyncId());
+			payload =payloadJson.toString();
+			integInfoObj = mapper.readValue(payload, IntegrationPropsEntity.class);
+			
+			IntegrationPropsEntity findByServiceIds = intPropsRepo.findTopByOsyncIdAndLeftServiceIdAndRightServiceId(accInfoObject.getOsyncId(), integInfoObj.getLeftServiceId(), integInfoObj.getRightServiceId());
+			
+			if(findByServiceIds == null) {
+				integInfoObj = intPropsRepo.save(integInfoObj);
+			} else {
+				integInfoObj = findByServiceIds;
+			}
+			//need to add authorization header
+			
+			integResponse.setId(integInfoObj.getIntegId()+"");
+			
+			ServiceInfoEntity leftServiceAuthObj = serviceRepo.findByServiceId(integInfoObj.getLeftServiceId());
+			
+			if(leftServiceAuthObj.getAuthType().equals("oauth")) {
+				String leftAuthUrl = constructOAuthUrl(leftServiceAuthObj,integInfoObj);
+				IntegrationResponse.ServiceDetails leftServiceDetails = integResponse.new ServiceDetails();
+				
+				leftServiceDetails.setServiceId(leftServiceAuthObj.getServiceId()+"");
+				leftServiceDetails.setServiceName(leftServiceAuthObj.getName());
+				
+				IntegrationResponse.AuthDetails leftAuthDetails = integResponse.new AuthDetails();
+				
+				leftAuthDetails.setType("oauth");
+				leftAuthDetails.setUrl(leftAuthUrl);
+				
+				leftServiceDetails.setAuthDetails(leftAuthDetails);
+				
+				integResponse.setLeftDetails(leftServiceDetails);
+				
+			}
+			
+			ServiceInfoEntity rightServiceAuthObj = serviceRepo.findByServiceId(integInfoObj.getRightServiceId());
+			
+			if(rightServiceAuthObj.getAuthType().equals("oauth")) {
+				String rightAuthUrl = constructOAuthUrl(rightServiceAuthObj,integInfoObj);
+				IntegrationResponse.ServiceDetails rightServiceDetails = integResponse.new ServiceDetails();
+				
+				rightServiceDetails.setServiceId(rightServiceAuthObj.getServiceId()+"");
+				rightServiceDetails.setServiceName(rightServiceAuthObj.getName());
+				
+				
+				IntegrationResponse.AuthDetails rightAuthDetails = integResponse.new AuthDetails();
+				
+				rightAuthDetails.setType("oauth");
+				rightAuthDetails.setUrl(rightAuthUrl);
+				
+				rightServiceDetails.setAuthDetails(rightAuthDetails);
+				
+				integResponse.setRightDetails(rightServiceDetails);
+				
+			}
+
+			
+			return integResponse;
+			
+		} catch (JsonMappingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		return null;
+
+	}
+	private String constructOAuthUrl(ServiceInfoEntity serviceAuthObj, IntegrationPropsEntity intInfoObj) {
+		String url = "";
+		
+		String authorizeUrl = serviceAuthObj.getAuthorizeUrl();
+		String authScopes = serviceAuthObj.getAuthScopes();
+		String clientId = serviceAuthObj.getClientId();
+		
+		String stateParam = intInfoObj.getOsyncId()+"::"+serviceAuthObj.getServiceId()+"::"+intInfoObj.getIntegId();
+		
+		url = authorizeUrl +"?response_type=code&client_id="+clientId+"&scope="+authScopes+"&redirect_uri="+OSyncAuthorizerUtil.redirectUrl+"&state="+stateParam;
+//		url += "&prompt=consent";
+		
+		return url;
 	}
 }
