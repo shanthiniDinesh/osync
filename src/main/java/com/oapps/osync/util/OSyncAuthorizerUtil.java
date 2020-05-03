@@ -2,7 +2,6 @@ package com.oapps.osync.util;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
-import com.oapps.osync.authorizer.AuthorizeParams;
 import com.oapps.osync.entity.ServiceAuthInfoEntity;
 import com.oapps.osync.entity.ServiceInfoEntity;
 import com.oapps.osync.repository.ServiceAuthInfoRepository;
@@ -53,10 +52,11 @@ public class OSyncAuthorizerUtil {
 		}
 		if(authParams.getScope() != null) {
 			webRes = webRes.queryParam("scope",  authParams.getScope());
+		} else {
+			webRes = webRes.queryParam("scope",  serviceInfo.getAuthScopes());
 		}
 		webRes = webRes.queryParam("grant_type",  "authorization_code");
 		webRes = webRes.queryParam("accounts-server",  "https://accounts.zoho.com");
-		webRes = webRes.queryParam("scope",  serviceInfo.getAuthScopes());
 		
 		ClientResponse clientResponse = webRes.post(ClientResponse.class);
 		String authResponse = clientResponse.getEntity(String.class);

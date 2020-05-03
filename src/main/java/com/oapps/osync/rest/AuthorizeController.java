@@ -6,10 +6,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.oapps.osync.authorizer.AuthorizeParams;
 import com.oapps.osync.entity.ServiceAuthInfoEntity;
 import com.oapps.osync.repository.ServiceAuthInfoRepository;
 import com.oapps.osync.repository.ServiceInfoRepository;
+import com.oapps.osync.util.AuthorizeParams;
 import com.oapps.osync.util.OSyncAuthorizerUtil;
 
 import lombok.extern.java.Log;

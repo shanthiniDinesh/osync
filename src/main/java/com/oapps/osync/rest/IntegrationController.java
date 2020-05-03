@@ -3,6 +3,7 @@ package com.oapps.osync.rest;
 import java.util.List;
 import java.util.Optional;
 
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,23 +13,36 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.oapps.osync.ControllerRepo;
 import com.oapps.osync.CurrentContext;
+import com.oapps.osync.entity.AccountInfoEntity;
 import com.oapps.osync.entity.DefaultFieldEntity;
 import com.oapps.osync.entity.DefaultFieldMapEntity;
 import com.oapps.osync.entity.FieldMapEntity;
 import com.oapps.osync.entity.IntegrationPropsEntity;
+import com.oapps.osync.entity.ServiceInfoEntity;
 import com.oapps.osync.fields.Fields;
+import com.oapps.osync.repository.AccountInfoRepository;
 import com.oapps.osync.repository.DefaultFieldsMappingRepo;
 import com.oapps.osync.repository.DefaultFieldsRepo;
 import com.oapps.osync.repository.FieldMapRepository;
 import com.oapps.osync.repository.IntegrationPropsRepository;
+import com.oapps.osync.repository.ServiceInfoRepository;
+import com.oapps.osync.util.IntegrationResponse;
+import com.oapps.osync.util.OSyncAuthorizerUtil;
 
 import lombok.extern.java.Log;
 
 @RestController
 @Log
 public class IntegrationController {
+	
+	ObjectMapper mapper = new ObjectMapper();
+	
 	@Autowired
 	AccountInfoRepository accountRepo;
 
