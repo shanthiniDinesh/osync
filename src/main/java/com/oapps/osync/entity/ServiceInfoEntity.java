@@ -14,6 +14,9 @@ import javax.persistence.TemporalType;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import com.fasterxml.jackson.annotation.JsonView;
+import com.oapps.osync.util.OsyncResponseViews;
+
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -21,6 +24,7 @@ import lombok.ToString;
 @Entity
 @ToString
 @Table(name = "ServiceInfo")
+@JsonView(OsyncResponseViews.Internal.class)
 public class ServiceInfoEntity {
 	
 	@Id
@@ -28,11 +32,13 @@ public class ServiceInfoEntity {
 	@Getter
 	@Setter
 	@Column(nullable = false, unique = true, updatable = false)
+	@JsonView(OsyncResponseViews.Public.class)
 	private Long serviceId;
 	
 	
 	@Getter
 	@Setter
+	@JsonView(OsyncResponseViews.Public.class)
 	private String name;
 	
 	@Getter
