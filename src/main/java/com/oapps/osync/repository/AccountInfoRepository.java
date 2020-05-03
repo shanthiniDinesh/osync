@@ -5,10 +5,9 @@ import java.util.List;
 import org.springframework.data.repository.CrudRepository;
 
 import com.oapps.osync.entity.AccountInfoEntity;
-import com.oapps.osync.entity.ServiceInfoEntity;
 
 
-public interface AccountInfoRepository extends CrudRepository<AccountInfoEntity, Integer> {
+public interface AccountInfoRepository extends CrudRepository<AccountInfoEntity, Long> {
 
 	List<AccountInfoEntity> findByRemoteIdentifier(String remoteIdentifier);
 	

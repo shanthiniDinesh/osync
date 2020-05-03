@@ -4,6 +4,7 @@ import java.util.HashMap;
 
 import org.json.JSONObject;
 
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -48,11 +49,13 @@ public class Record {
 
 	public JSONObject columnValuesAsJson() throws JsonProcessingException {
 		ObjectMapper mapper = new ObjectMapper();
+		mapper.setSerializationInclusion(Include.NON_NULL);
 		return new JSONObject(mapper.writeValueAsString(columnValues));
 	}
-	
+
 	public JSONObject toJson() throws JsonProcessingException {
 		ObjectMapper mapper = new ObjectMapper();
+		//mapper.setSerializationInclusion(Include.NON_NULL);
 		return new JSONObject(mapper.writeValueAsString(this));
 	}
 }

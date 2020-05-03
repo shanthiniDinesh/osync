@@ -3,6 +3,7 @@ package com.oapps.osync.controller.freshworks.freshsales;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.logging.Level;
 
 import org.json.JSONArray;
@@ -195,6 +196,18 @@ public class FreshSalesController implements Controller {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		return null;
+	}
+
+	@Override
+	public RecordSet fetchRecords(int startPage, int totalRecords, Long startTime, Long endTime) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public RecordSet getMatchedRecordsByUniqueId(List<String> recordsToFetchRemote) {
+		// TODO Auto-generated method stub
 		return null;
 	}
 

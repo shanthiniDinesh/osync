@@ -4,17 +4,16 @@ import java.util.Date;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.Id;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
+import com.oapps.osync.service.OsyncEnums.IntegrationStatus;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -22,48 +21,47 @@ import lombok.ToString;
 
 @Entity
 @ToString
-@Table(name = "OsyncAccount")
-public class AccountInfoEntity {
-
+@Table(name = "IntegrationStatus")
+public class IntegrationStatusEntity {
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
+	@Getter
+	@Setter
 	@Column(nullable = false, unique = true, updatable = false)
+	private Long integId;
+
 	@Getter
 	@Setter
+	@Column(nullable = false)
 	private Long osyncId;
-	
+
 	@Getter
 	@Setter
-	@JsonAlias({"left_service_id"})
-	private Long serviceId;
-	
+	@Temporal(TemporalType.TIMESTAMP)
+	private Date prevStartTime;
+
 	@Getter
 	@Setter
-	@JsonAlias({"companyId", "organizationId" })
-	private String remoteIdentifier;
-	
+	@Temporal(TemporalType.TIMESTAMP)
+	private Date prevEndTime;
+
 	@Getter
 	@Setter
-	private String name;
-	
+	@Temporal(TemporalType.TIMESTAMP)
+	private Date startTime;
+
 	@Getter
 	@Setter
-	private String email;
-	
+	@Temporal(TemporalType.TIMESTAMP)
+	private Date endTime;
+
 	@Getter
 	@Setter
-	private String planName;
-	
+	@Enumerated(EnumType.STRING)
+	private IntegrationStatus status;
+
 	@Getter
 	@Setter
 	@Temporal(TemporalType.TIMESTAMP)
 	@CreationTimestamp
 	private Date createdTime;
-
-	@Getter
-	@Setter
-	@Temporal(TemporalType.TIMESTAMP)
-	@UpdateTimestamp
-	private Date modifiedTime;
-
 }
