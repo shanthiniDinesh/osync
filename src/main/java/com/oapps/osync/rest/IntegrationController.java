@@ -114,7 +114,6 @@ public class IntegrationController {
 	}
 	
 	@GetMapping(path = "/api/v1/integration/{integ_id}/modules")
-//	@JsonView(OsyncResponseViews.Public.class)
 	public @ResponseBody IntegrationResponse getModules(@PathVariable("integ_id") Long integId) {
 		IntegrationResponse integResponse = new IntegrationResponse();
 		Optional<IntegrationPropsEntity> findById = intPropsRepo.findById(integId);
@@ -122,22 +121,45 @@ public class IntegrationController {
 			Long leftServiceId = findById.get().getLeftServiceId();
 			Long rightServiceId = findById.get().getRightServiceId();
 			
+			IntegrationResponse.Entity entityDetails = integResponse.new Entity();
+			entityDetails.setDirection(findById.get().getDirection()+"");
+			entityDetails.setLeftId(findById.get().getLeftModuleId()+"");
+			entityDetails.setRightId(findById.get().getRightModuleId()+"");
+			
+			
 			IntegrationResponse.ServiceDetails leftServiceDetails = integResponse.new ServiceDetails();
 			leftServiceDetails.setModules(getAllModules(leftServiceId));
 			leftServiceDetails.setServiceId(leftServiceId+"");
-			leftServiceDetails.setModuleId(findById.get().getLeftModuleId());
 			leftServiceDetails.setServiceName(serviceRepo.findByServiceId(leftServiceId).getName());
 			
 			IntegrationResponse.ServiceDetails rightServiceDetails = integResponse.new ServiceDetails();
 			rightServiceDetails.setModules(getAllModules(rightServiceId));
 			rightServiceDetails.setServiceId(rightServiceId+"");
-			rightServiceDetails.setModuleId(findById.get().getRightModuleId());
 			rightServiceDetails.setServiceName(serviceRepo.findByServiceId(rightServiceId).getName());
 			
 			integResponse.setLeftDetails(leftServiceDetails);
 			integResponse.setRightDetails(rightServiceDetails);
+			integResponse.setEntity(entityDetails);
 		}
 		return integResponse;
+	}
+	
+	@PostMapping(path = "/api/v1/integration/{integ_id}/modules"  , consumes = "application/json", produces = "application/json")
+	public @ResponseBody IntegrationPropsEntity saveModules(@PathVariable("integ_id") Long integId,@RequestBody String payload) {
+		
+		JSONObject payloadJson = new JSONObject(payload);
+		String leftModuleId = payloadJson.optString("left_module_id");
+		String rightModuleId = payloadJson.optString("right_module_id");
+		int syncDirection = payloadJson.optInt("direction");
+		Optional<IntegrationPropsEntity> findById = intPropsRepo.findById(integId);
+		if (findById.isPresent()) {
+			IntegrationPropsEntity integrationPropsEntity = findById.get();
+			integrationPropsEntity.setLeftModuleId(Long.valueOf(leftModuleId));
+			integrationPropsEntity.setRightModuleId(Long.valueOf(rightModuleId));
+			integrationPropsEntity.setDirection(syncDirection);
+			return intPropsRepo.save(integrationPropsEntity);
+		}
+		return null;
 	}
 
 	@GetMapping(path = "/api/v1/integration/{integ_id}")

@@ -18,6 +18,9 @@ public class IntegrationResponse {
 	private String id;
 	private String hash;
 	
+	@JsonProperty("data")
+	private IntegrationResponse.Entity entity;
+	
 	@JsonProperty("left")
 	private IntegrationResponse.ServiceDetails leftDetails;
 	
@@ -47,6 +50,19 @@ public class IntegrationResponse {
 		private String type;
 		private String url;
 		
+	}
+	
+	@Getter
+	@Setter
+	public class Entity{
+		
+		@JsonProperty("left_module_id")
+		private String leftId;
+		
+		@JsonProperty("right_module_id")
+		private String rightId;
+		
+		private String direction;
 	}
 
 }
