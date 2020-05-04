@@ -32,6 +32,7 @@ import com.oapps.osync.repository.DefaultFieldsMappingRepo;
 import com.oapps.osync.repository.DefaultFieldsRepo;
 import com.oapps.osync.repository.FieldMapRepository;
 import com.oapps.osync.repository.IntegrationPropsRepository;
+import com.oapps.osync.repository.ModuleInfoRepository;
 import com.oapps.osync.repository.ServiceInfoRepository;
 import com.oapps.osync.security.CurrentContext;
 import com.oapps.osync.service.IntegrationService;
@@ -58,6 +59,9 @@ public class IntegrationController {
 
 	@Autowired
 	FieldMapRepository fieldMapRepo;
+	
+	@Autowired
+	ModuleInfoRepository moduleMapRepo;
 
 	@Autowired
 	DefaultFieldsRepo defaultFieldsRepo;
@@ -90,6 +94,11 @@ public class IntegrationController {
 		}
 		return ControllerRepo.getInstance(serviceInfo.getName(), moduleInfo.getName()).getFields();
 	}
+	
+	@GetMapping(path = "/api/v1/all-modules")
+	public @ResponseBody List<ModuleInfoEntity> getAllModules(@RequestParam("service_id") Long serviceId) {
+		return moduleMapRepo.findAllByServiceId(serviceId);
+	}
 
 	@GetMapping(path = "/api/v1/default-fields-map")
 	public @ResponseBody List<DefaultFieldMapEntity> getDefaultFieldsMap(
@@ -102,6 +111,55 @@ public class IntegrationController {
 	@GetMapping(path = "/api/v1/integration/{integ_id}/fields")
 	public @ResponseBody List<FieldMapEntity> getAllFields(@PathVariable("integ_id") Long integId) {
 		return fieldMapRepo.findAllByIntegId(integId);
+	}
+	
+	@GetMapping(path = "/api/v1/integration/{integ_id}/modules")
+	public @ResponseBody IntegrationResponse getModules(@PathVariable("integ_id") Long integId) {
+		IntegrationResponse integResponse = new IntegrationResponse();
+		Optional<IntegrationPropsEntity> findById = intPropsRepo.findById(integId);
+		if (findById.isPresent()) {
+			Long leftServiceId = findById.get().getLeftServiceId();
+			Long rightServiceId = findById.get().getRightServiceId();
+			
+			IntegrationResponse.Entity entityDetails = integResponse.new Entity();
+			entityDetails.setDirection(findById.get().getDirection()+"");
+			entityDetails.setLeftId(findById.get().getLeftModuleId()+"");
+			entityDetails.setRightId(findById.get().getRightModuleId()+"");
+			
+			
+			IntegrationResponse.ServiceDetails leftServiceDetails = integResponse.new ServiceDetails();
+			leftServiceDetails.setModules(getAllModules(leftServiceId));
+			leftServiceDetails.setServiceId(leftServiceId+"");
+			leftServiceDetails.setServiceName(serviceRepo.findByServiceId(leftServiceId).getName());
+			
+			IntegrationResponse.ServiceDetails rightServiceDetails = integResponse.new ServiceDetails();
+			rightServiceDetails.setModules(getAllModules(rightServiceId));
+			rightServiceDetails.setServiceId(rightServiceId+"");
+			rightServiceDetails.setServiceName(serviceRepo.findByServiceId(rightServiceId).getName());
+			
+			integResponse.setLeftDetails(leftServiceDetails);
+			integResponse.setRightDetails(rightServiceDetails);
+			integResponse.setEntity(entityDetails);
+		}
+		return integResponse;
+	}
+	
+	@PostMapping(path = "/api/v1/integration/{integ_id}/modules"  , consumes = "application/json", produces = "application/json")
+	public @ResponseBody IntegrationPropsEntity saveModules(@PathVariable("integ_id") Long integId,@RequestBody String payload) {
+		
+		JSONObject payloadJson = new JSONObject(payload);
+		String leftModuleId = payloadJson.optString("left_module_id");
+		String rightModuleId = payloadJson.optString("right_module_id");
+		int syncDirection = payloadJson.optInt("direction");
+		Optional<IntegrationPropsEntity> findById = intPropsRepo.findById(integId);
+		if (findById.isPresent()) {
+			IntegrationPropsEntity integrationPropsEntity = findById.get();
+			integrationPropsEntity.setLeftModuleId(Long.valueOf(leftModuleId));
+			integrationPropsEntity.setRightModuleId(Long.valueOf(rightModuleId));
+			integrationPropsEntity.setDirection(syncDirection);
+			return intPropsRepo.save(integrationPropsEntity);
+		}
+		return null;
 	}
 
 	@GetMapping(path = "/api/v1/integration/{integ_id}")

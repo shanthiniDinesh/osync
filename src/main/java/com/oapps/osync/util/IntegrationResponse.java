@@ -1,12 +1,25 @@
 package com.oapps.osync.util;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.oapps.osync.entity.ModuleInfoEntity;
+
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+@Getter
+@Setter
+@ToString
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class IntegrationResponse {
 	
 	private String id;
-	
 	private String hash;
+	
+	@JsonProperty("data")
+	private IntegrationResponse.Entity entity;
 	
 	@JsonProperty("left")
 	private IntegrationResponse.ServiceDetails leftDetails;
@@ -15,90 +28,41 @@ public class IntegrationResponse {
 	private IntegrationResponse.ServiceDetails rightDetails;
 	
 	
-	public String getId() {
-		return id;
-	}
-
-	public void setId(String id) {
-		this.id = id;
-	}
-
-	public String getHash() {
-		return hash;
-	}
-
-	public void setHash(String hash) {
-		this.hash = hash;
-	}
-
-	public IntegrationResponse.ServiceDetails getLeftDetails() {
-		return leftDetails;
-	}
-
-	public void setLeftDetails(IntegrationResponse.ServiceDetails leftDetails) {
-		this.leftDetails = leftDetails;
-	}
-
-	public IntegrationResponse.ServiceDetails getRightDetails() {
-		return rightDetails;
-	}
-
-	public void setRightDetails(IntegrationResponse.ServiceDetails rightDetails) {
-		this.rightDetails = rightDetails;
-	}
-
+	@Getter
+	@Setter
+	@JsonInclude(JsonInclude.Include.NON_NULL)
 	public class ServiceDetails {
 		private String serviceId;
 		private String serviceName;
-		private String serviceLogo;
+		private Long moduleId;
 		
 		@JsonProperty("auth")
 		private IntegrationResponse.AuthDetails authDetails;
 		
-		public String getServiceId() {
-			return serviceId;
-		}
-		public void setServiceId(String serviceId) {
-			this.serviceId = serviceId;
-		}
-		public String getServiceName() {
-			return serviceName;
-		}
-		public void setServiceName(String serviceName) {
-			this.serviceName = serviceName;
-		}
-		public String getServiceLogo() {
-			return serviceLogo;
-		}
-		public void setServiceLogo(String serviceLogo) {
-			this.serviceLogo = serviceLogo;
-		}
-		public IntegrationResponse.AuthDetails getAuthDetails() {
-			return authDetails;
-		}
-		public void setAuthDetails(IntegrationResponse.AuthDetails authDetails) {
-			this.authDetails = authDetails;
-		}
-		
+		private List<ModuleInfoEntity> modules;
 		
 	}
 	
+	@Getter
+	@Setter
+	@JsonInclude(JsonInclude.Include.NON_NULL)
 	public class AuthDetails {
 		private String type;
 		private String url;
-		public String getType() {
-			return type;
-		}
-		public void setType(String type) {
-			this.type = type;
-		}
-		public String getUrl() {
-			return url;
-		}
-		public void setUrl(String url) {
-			this.url = url;
-		}
 		
+	}
+	
+	@Getter
+	@Setter
+	public class Entity{
+		
+		@JsonProperty("left_module_id")
+		private String leftId;
+		
+		@JsonProperty("right_module_id")
+		private String rightId;
+		
+		private String direction;
 	}
 
 }
