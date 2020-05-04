@@ -46,6 +46,10 @@ public class ServiceAuthInfoEntity {
 	
 	@Getter
 	@Setter
+	private Long integId;
+	
+	@Getter
+	@Setter
 	private String tokenType;
 	
 	@Getter

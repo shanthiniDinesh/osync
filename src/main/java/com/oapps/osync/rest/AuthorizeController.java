@@ -1,11 +1,16 @@
 package com.oapps.osync.rest;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.oapps.osync.entity.ModuleInfoEntity;
 import com.oapps.osync.entity.ServiceAuthInfoEntity;
 import com.oapps.osync.repository.ServiceAuthInfoRepository;
 import com.oapps.osync.repository.ServiceInfoRepository;
@@ -67,4 +72,10 @@ public class AuthorizeController {
 
 		
 	}
+	@DeleteMapping(path = "/api/v1/revoke")
+	public void revoke(@RequestParam String serviceId,@RequestParam String osyncId, @RequestParam String integId) {
+		if(serviceId != null && osyncId != null) {
+			serviceAuthRepo.delete(serviceAuthRepo.findByOsyncIdAndServiceIdAndIntegId(Long.valueOf(osyncId),Long.valueOf(serviceId),Long.valueOf(integId) ));
+		}
+	} 
 }
