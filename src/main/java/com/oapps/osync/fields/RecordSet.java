@@ -25,6 +25,10 @@ public class RecordSet implements Iterable<Record> {
 	@Getter
 	@Setter
 	@NonNull
+	String uniqueId;
+
+	@Getter
+	@Setter
 	String uniqueColumnName;
 
 	HashMap<String, Record> recordSets = new HashMap<String, Record>();
@@ -33,6 +37,10 @@ public class RecordSet implements Iterable<Record> {
 		Record record = new Record(uniqueValue);
 		recordSets.put(uniqueValue, record);
 		return record;
+	}
+
+	public void remove(String uniqueValue) {
+		recordSets.remove(uniqueValue);
 	}
 
 	public Record createEmptyObject() {
@@ -45,6 +53,19 @@ public class RecordSet implements Iterable<Record> {
 
 	public Record find(String uniqueValue) {
 		return recordSets.get(uniqueValue);
+	}
+
+	public Record findByUniqueColumn(String uniqueValue) {
+		// TODO : Optimize
+		for (Record record : recordSets.values()) {
+			Object valueObj = record.getValue(uniqueColumnName);
+			if (valueObj != null) {
+				if (valueObj.toString().equalsIgnoreCase(uniqueValue)) {
+					return record;
+				}
+			}
+		}
+		return null;
 	}
 
 	public int count() {
@@ -89,9 +110,9 @@ public class RecordSet implements Iterable<Record> {
 			record.setMappedRecordUniqueValue(uniqueValues.get(record.getUniqueValue()));
 		}
 	}
-	
+
 	public void fillUniqueValueMap(UniqueValuesMapRepo uvMapRepo, Long integId, boolean isLeft) {
-		if(isLeft) {
+		if (isLeft) {
 			fillLeftUniqueValueMap(uvMapRepo, integId);
 		} else {
 			fillRightUniqueValueMap(uvMapRepo, integId);

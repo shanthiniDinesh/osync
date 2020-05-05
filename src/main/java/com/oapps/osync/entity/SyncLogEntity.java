@@ -41,6 +41,22 @@ public class SyncLogEntity {
 
 	@Getter
 	@Setter
+	private String leftService;
+
+	@Getter
+	@Setter
+	private String rightService;
+
+	@Getter
+	@Setter
+	private String leftModule;
+
+	@Getter
+	@Setter
+	private String rightModule;
+
+	@Getter
+	@Setter
 	@Temporal(TemporalType.TIMESTAMP)
 	private Date startTime;
 
@@ -66,7 +82,17 @@ public class SyncLogEntity {
 	@Getter
 	@Setter
 	@Column()
-	private Integer updatedLeftCount = 0;
+	private Integer leftCountUpdated = 0;
+	
+	@Getter
+	@Setter
+	@Column()
+	private Integer leftNoChangeCount = 0;
+	
+	@Getter
+	@Setter
+	@Column()
+	private Integer rightNoChangeCount = 0;
 
 	@Getter
 	@Setter
@@ -90,15 +116,15 @@ public class SyncLogEntity {
 
 	@Getter
 	@Setter
-	private Integer updatedRightCount = 0;
+	private Integer rightCountUpdated = 0;
 
 	@Getter
 	@Setter
-	private Integer createdLeftCount = 0;
+	private Integer leftCountCreated = 0;
 
 	@Getter
 	@Setter
-	private Integer createdRightCount = 0;
+	private Integer rightCountCreated = 0;
 
 	@Getter
 	@Setter
@@ -113,4 +139,49 @@ public class SyncLogEntity {
 	@Temporal(TemporalType.TIMESTAMP)
 	@CreationTimestamp
 	private Date createdTime;
+
+	public void addFetchCount(int count, boolean isLeft) {
+		if (isLeft) {
+			setLeftCountFetched(getLeftCountFetched() + count);
+		} else {
+			setRightCountFetched(getRightCountFetched() + count);
+		}
+
+	}
+
+	public void incrementSkippedCount(boolean isLeft) {
+		if (isLeft) {
+			setLeftSkippedForEmailColumn(getLeftSkippedForEmailColumn() + 1);
+		} else {
+			setRightSkippedForEmailColumn(getRightSkippedForEmailColumn() + 1);
+		}
+	}
+
+	public void incrementUniqueColumnMatch() {
+		setMatchedOnUniqueColumn(getMatchedOnUniqueColumn() + 1);
+	}
+
+	public void addCreatedCount(int count, boolean isLeft) {
+		if (isLeft) {
+			setLeftCountCreated(getLeftCountCreated() + count);
+		} else {
+			setRightCountCreated(getRightCountCreated() + count);
+		}
+	}
+
+	public void addUpdatedCount(int count, boolean isLeft) {
+		if (isLeft) {
+			setLeftCountUpdated(getLeftCountUpdated() + count);
+		} else {
+			setRightCountUpdated(getRightCountUpdated() + count);
+		}
+	}
+	
+	public void incrNoChangeCount(boolean isLeft) {
+		if (isLeft) {
+			setLeftNoChangeCount(getLeftNoChangeCount() + 1);
+		} else {
+			setRightNoChangeCount(getRightNoChangeCount() + 1);
+		}
+	}
 }

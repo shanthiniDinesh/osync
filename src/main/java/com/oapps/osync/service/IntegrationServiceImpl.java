@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.logging.Level;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -70,19 +71,39 @@ public class IntegrationServiceImpl implements IntegrationService {
 			Optional<IntegrationStatusEntity> intStatus = intStatusRepo.findById(integId);
 			Long startTime = -1l;
 			Long endTime = System.currentTimeMillis();
-			if (!intStatus.isPresent()) {
+			if (intStatus.isPresent()) {
 				IntegrationStatusEntity status = intStatus.get();
 				if (status.getStatus().equals(IntegrationStatus.COMPLETE)) {
 					startTime = status.getEndTime().getTime();
+
+					status.setPrevStartTime(status.getStartTime());
+					status.setPrevEndTime(status.getEndTime());
+
+					status.setStartTime(status.getEndTime());
+					status.setEndTime(new Date(endTime));
+
+					status.setStatus(IntegrationStatus.RUNNING);
+
+					intStatusRepo.save(status);
+
 				} else if (status.getStatus().equals(IntegrationStatus.RUNNING)) {
 					log.severe("New sync initiated, but old sync still in progress, " + integId + intProps + intStatus);
 					logEntity.setStatus(IntegrationStatus.NOT_STARTED);
-					throw new OsyncException("Sync in progress");
+					// throw new OsyncException("Sync in progress");
 				} else if (status.getStatus().equals(IntegrationStatus.ERROR)) {
 					log.severe("Old sync ended in error. Please check the status. " + integId + intProps + intStatus);
 					logEntity.setStatus(IntegrationStatus.NOT_STARTED);
-					throw new OsyncException("Old sync ended in error. Please check the status.");
+					// throw new OsyncException("Old sync ended in error. Please check the
+					// status.");
 				}
+
+			} else {
+				IntegrationStatusEntity status = new IntegrationStatusEntity();
+				status.setStatus(IntegrationStatus.RUNNING);
+				status.setIntegId(integId);
+				status.setOsyncId(osyncId);
+				status.setEndTime(new Date(endTime));
+				intStatusRepo.save(status);
 			}
 
 			@NonNull
@@ -102,262 +123,182 @@ public class IntegrationServiceImpl implements IntegrationService {
 
 			Controller controllerA = getControllerInstance(serviceA.getName(), moduleA.getName());
 			Controller controllerB = getControllerInstance(serviceB.getName(), moduleB.getName());
+
 			// controller.fetchUpdatedRecords(osyncId, lastSyncTime)
-			int startPage = 1;
-			int totalRecords = 100;
 			boolean isLeft = true;
 
-			RecordSet recordSetA = controllerA.fetchRecords(startPage, totalRecords, startTime, endTime);
-			recordSetA.fillUniqueValueMap(uvMapRepo, integId, isLeft);
-			
-			RecordSet toCreate = RecordSet.init(serviceB.getName(), moduleB.getPrimaryColumn());
+			logEntity.setLeftService(serviceA.getName());
+			logEntity.setRightService(serviceB.getName());
+			logEntity.setLeftModule(moduleA.getName());
+			logEntity.setRightModule(moduleB.getName());
 
-			while (recordSetA.count() > 0) {
-				List<String> recordsToFetchRemote = new ArrayList<String>();
-				for (Record record : recordSetA) {
-
-					if (intProps.isSyncRecordsWithEmail() && record.getValue(moduleA.getEmailColumn()) == null) {
-						// do not sync the records without email
-						continue;
-					}
-
-					boolean isUpdate = record.getMappedRecordUniqueValue() != null;
-
-					if (!isUpdate) {
-						// create block
-						if (record.getMappedRecordUniqueValue() == null && intProps.isLookupUniqueColumn()) {
-							isUpdate = findMatchedRecord(intProps, controllerB, record, isUpdate,
-									moduleA.getUniqueColumn(), true);
-						}
-					}
-
-					if (isUpdate) {
-						recordsToFetchRemote.add(record.getMappedRecordUniqueValue());
-					} else {
-						Record nrecord = toCreate.createEmptyObject();
-						nrecord = fillRecord(nrecord, record, fieldMaps, true);
-						nrecord.setMappedRecordUniqueValue(record.getUniqueValue());
-					}
-				}
-				if (recordsToFetchRemote.size() > 0) {
-					RecordSet recordSetB = controllerB.getMatchedRecordsByUniqueId(recordsToFetchRemote);
-					
-					/*
-					 * Record record = rightRecordsToUpdate.add(leftRecord.getMappedRecordUniqueValue());
-				record = fillRecord(record, leftRecord, field	Maps, true);
-				record.setMappedRecordUniqueValue(leftRecord.getUniqueValue());
-					 */
-				}
-			}
+			syncOneWay(intProps, controllerA, controllerB, startTime, endTime, serviceA, moduleA, serviceB, moduleB,
+					fieldMaps, isLeft, logEntity);
+			syncOneWay(intProps, controllerB, controllerA, startTime, endTime, serviceB, moduleB, serviceA, moduleA,
+					fieldMaps, !isLeft, logEntity);
 
 		} finally {
 			logEntity.setStartTime(new Date(syncStartTime));
 			logEntity.setEndTime(new Date(System.currentTimeMillis()));
 			logEntity.setIntegId(integId);
 			logEntity.setOsyncId(osyncId);
+			logEntity.setStatus(IntegrationStatus.COMPLETE);
 			logRepo.save(logEntity);
 		}
-		return null;
+		return logEntity;
 	}
 
-	@Override
-	public SyncLogEntity sync(Long integId) throws OsyncException {
+	private void syncOneWay(IntegrationPropsEntity intProps, Controller controllerA, Controller controllerB,
+			Long startTime, Long endTime, ServiceInfoEntity serviceA, ModuleInfoEntity moduleA,
+			ServiceInfoEntity serviceB, ModuleInfoEntity moduleB, List<FieldMapEntity> fieldMaps, boolean isLeft,
+			SyncLogEntity logEntity) {
+		int startPage = 1;
+		int totalRecords = 10;
+		Long integId = intProps.getIntegId();
 
-		Optional<IntegrationPropsEntity> intPropsOpt = intPropsRepo.findById(integId);
+		RecordSet recordSetA = controllerA.fetchRecords(startPage, totalRecords, startTime);
+		recordSetA.fillUniqueValueMap(uvMapRepo, integId, isLeft);
 
-		if (!intPropsOpt.isPresent()) {
-			throw new OsyncException("Integration ID Not present");
-		}
-		@NonNull
-		IntegrationPropsEntity intProps = intPropsOpt.get();
-		@NonNull
-		Long osyncId = intProps.getOsyncId();
+		do {
+			ilog("Sync start", "start", startPage, "totalRecords", totalRecords, "integId", integId, "isLeft", isLeft,
+					"Service A", serviceA.getName(), "Module A", moduleA.getName(), "Service B", serviceB.getName(),
+					"Module B", moduleB.getName());
+			RecordSet toCreate = RecordSet.init(serviceB.getName(), moduleB.getPrimaryColumn());
+			RecordSet toUpdate = RecordSet.init(serviceB.getName(), moduleB.getPrimaryColumn());
 
-		SyncLogEntity logEntity = new SyncLogEntity();
+			logEntity.addFetchCount(recordSetA.count(), isLeft);
 
-		@NonNull
-		List<FieldMapEntity> fieldMaps = fieldMapRepo.findAllByIntegId(integId);
+			List<String> recordsToFetchB = new ArrayList<String>();
+			HashMap<String, String> fetchByUniqueColumn = new HashMap<String, String>();
+			for (Record record : recordSetA) {
 
-		@NonNull
-		ServiceInfoEntity leftServiceInfo = getServiceInfo(intProps.getLeftServiceId());
-		@NonNull
-		ServiceInfoEntity rightServiceInfo = getServiceInfo(intProps.getRightServiceId());
+				if (intProps.isSyncRecordsWithEmail() && record.getValue(moduleA.getEmailColumn()) == null) {
+					// do not sync the records without email
+					logEntity.incrementSkippedCount(isLeft);
+					continue;
+				}
 
-		@NonNull
-		ModuleInfoEntity leftModuleInfo = getModuleInfo(intProps.getLeftModuleId());
-		@NonNull
-		ModuleInfoEntity rightModuleInfo = getModuleInfo(intProps.getRightModuleId());
+				boolean isUpdate = record.getMappedRecordUniqueValue() != null;
 
-		@NonNull
-		Controller left = getControllerInstance(leftServiceInfo.getName(), leftModuleInfo.getName());
-		@NonNull
-		Controller right = getControllerInstance(rightServiceInfo.getName(), rightModuleInfo.getName());
-
-		RecordSet leftRecordSet = left.fetchUpdatedRecords(osyncId, System.currentTimeMillis() - (10 * 60 * 1000l));
-		leftRecordSet.fillLeftUniqueValueMap(uvMapRepo, integId);
-
-		logEntity.setLeftCountFetched(leftRecordSet.count());
-
-		RecordSet leftRecordsToCreate = RecordSet.init(leftServiceInfo.getName(), leftModuleInfo.getPrimaryColumn());
-		RecordSet rightRecordsToCreate = RecordSet.init(rightServiceInfo.getName(), rightModuleInfo.getPrimaryColumn());
-
-		RecordSet leftRecordsToUpdate = RecordSet.init(leftServiceInfo.getName(), leftModuleInfo.getPrimaryColumn());
-		RecordSet rightRecordsToUpdate = RecordSet.init(rightServiceInfo.getName(), rightModuleInfo.getPrimaryColumn());
-
-		int leftSkipped = 0;
-		int rightSkipped = 0;
-		int matched = 0;
-		for (Record leftRecord : leftRecordSet) {
-
-			if (intProps.isSyncRecordsWithEmail() && leftRecord.getValue(leftModuleInfo.getEmailColumn()) == null) {
-				// do not sync the records without email
-				leftSkipped++;
-				continue;
-			}
-			boolean isUpdate = leftRecord.getMappedRecordUniqueValue() != null;
-
-			if (leftRecord.getMappedRecordUniqueValue() == null && intProps.isLookupUniqueColumn()) {
-				isUpdate = findMatchedRecord(intProps, right, leftRecord, isUpdate, leftModuleInfo.getUniqueColumn(),
-						true);
 				if (isUpdate) {
-					matched++;
+					recordsToFetchB.add(record.getMappedRecordUniqueValue());
+				} else {
+					// create
+					if (intProps.isLookupUniqueColumn()) {
+						// lookup and then decide
+						String uniqueValue = record.getValue(moduleA.getUniqueColumn()).toString();
+						fetchByUniqueColumn.put(record.getUniqueValue(), uniqueValue);
+					} else {
+						// no need to lookup, add as new record
+						Record nrecord = toCreate.createEmptyObject();
+						compareAndFillRecord(nrecord, record, null, fieldMaps, isLeft);
+						nrecord.setMappedRecordUniqueValue(record.getUniqueValue());
+					}
+				}
+			}
+			ilog("Counts", "Record count to fetch from B", recordsToFetchB.size(),
+					"Record count to check for unique columns", fetchByUniqueColumn.size());
+			if (recordsToFetchB.size() > 0) {
+				// updates
+				RecordSet recordSetB = controllerB.getMatchedRecordsById(recordsToFetchB);
+				recordSetB.fillUniqueValueMap(uvMapRepo, integId, !isLeft);
+
+				for (Record recordA : recordSetA) {
+					Record recordB = recordSetB.find(recordA.getMappedRecordUniqueValue());
+					if (recordB != null) {
+						Record newRecord = toUpdate.add(recordA.getMappedRecordUniqueValue());
+						boolean hasAnyChange = compareAndFillRecord(newRecord, recordA, recordB, fieldMaps, isLeft);
+						if (hasAnyChange) {
+							newRecord.setMappedRecordUniqueValue(recordA.getUniqueValue());
+						} else {
+							// there is no change in the object, hence removing from the overall list
+							logEntity.incrNoChangeCount(isLeft);
+							toUpdate.remove(recordA.getMappedRecordUniqueValue());
+						}
+
+					}
 				}
 			}
 
-			if (isUpdate) {
-				// update now
-				Record record = rightRecordsToUpdate.add(leftRecord.getMappedRecordUniqueValue());
-				record = fillRecord(record, leftRecord, fieldMaps, true);
-				record.setMappedRecordUniqueValue(leftRecord.getUniqueValue());
+			int totalCreateAfterMatch = 0;
+			int totalUpdateAfterMatch = 0;
+
+			if (fetchByUniqueColumn.size() > 0) {
+				// creates
+				RecordSet uniqueRecordSetB = controllerB.getMatchedRecordsByUniqueColumn(fetchByUniqueColumn.values());
+				uniqueRecordSetB.setUniqueColumnName(moduleB.getUniqueColumn());
+				for (Entry<String, String> entry : fetchByUniqueColumn.entrySet()) {
+					String id = entry.getKey();
+					String uniqueValue = entry.getValue();
+					Record recordA = recordSetA.find(id);
+					Record recordB = uniqueRecordSetB.findByUniqueColumn(uniqueValue);
+					if (recordB == null) {
+						Record nrecord = toCreate.createEmptyObject();
+						compareAndFillRecord(nrecord, recordA, null, fieldMaps, isLeft);
+						nrecord.setMappedRecordUniqueValue(recordA.getUniqueValue());
+						totalCreateAfterMatch++;
+					} else {
+						addUVMapping(intProps, recordA, recordB, moduleA.getUniqueColumn(), isLeft);
+						logEntity.incrementUniqueColumnMatch();
+						Record newRecord = toUpdate.add(recordA.getMappedRecordUniqueValue());
+						compareAndFillRecord(newRecord, recordA, recordB, fieldMaps, isLeft);
+						totalUpdateAfterMatch++;
+					}
+				}
+				ilog("Matched unique columns", "Total create after match", totalCreateAfterMatch,
+						" Total update after match", totalUpdateAfterMatch);
+			}
+			ilog("Overall count", "Create", toCreate.count(), "Update", toUpdate.count());
+			if (toCreate.count() > 0) {
+				logEntity.addCreatedCount(toCreate.count(), !isLeft);
+				controllerB.createNewRecords(toCreate, null);
+			}
+			if (toUpdate.count() > 0) {
+				logEntity.addUpdatedCount(toUpdate.count(), !isLeft);
+				controllerB.updateRecords(toUpdate, null);
+			}
+
+			startPage++;
+			if (recordSetA.count() == totalRecords) {
+				recordSetA = controllerA.fetchRecords(startPage, totalRecords, startTime);
+				recordSetA.fillUniqueValueMap(uvMapRepo, integId, isLeft);
 			} else {
-				// create now
-				Record record = rightRecordsToCreate.createEmptyObject();
-				record = fillRecord(record, leftRecord, fieldMaps, true);
-				record.setMappedRecordUniqueValue(leftRecord.getUniqueValue());
+				ilog("Sync completed.");
+				// we are done here
+				break;
 			}
-		}
+			// TODO: Temp
+		} while (recordSetA.count() > 0);
+	}
 
-		RecordSet rightRecordSet = right.fetchUpdatedRecords(osyncId, System.currentTimeMillis() - (10 * 60 * 1000l));
-		logEntity.setRightCountFetched(rightRecordSet.count());
-		rightRecordSet.fillRightUniqueValueMap(uvMapRepo, integId);
-
-		for (Record rightRecord : rightRecordSet) {
-
-			if (intProps.isSyncRecordsWithEmail() && rightRecord.getValue(rightModuleInfo.getEmailColumn()) == null) {
-				// do not sync the records without email
-				rightSkipped++;
-				continue;
-			}
-			boolean isUpdate = rightRecord.getMappedRecordUniqueValue() != null;
-
-			if (rightRecord.getMappedRecordUniqueValue() == null && intProps.isLookupUniqueColumn()) {
-				isUpdate = findMatchedRecord(intProps, left, rightRecord, isUpdate, rightModuleInfo.getUniqueColumn(),
-						false);
-				if (isUpdate) {
-					matched++;
+	private void ilog(String message, Object... values) {
+		// int startPage, int totalRecords, Long integId, boolean isLeft, String name,
+		StringBuilder logMessage = new StringBuilder();
+		try {
+			logMessage.append(message).append(", ");
+			if (values != null) {
+				for (int i = 0; i < values.length; i++) {
+					if (values[i] == null) {
+						logMessage.append("NULL").append(": ");
+					} else {
+						logMessage.append(values[i]).append(": ");
+					}
+					i++;
+					if (values.length > i) {
+						if (values[i] == null) {
+							logMessage.append("NULL").append(", ");
+						} else {
+							logMessage.append(values[i]).append(", ");
+						}
+					}
 				}
 			}
-
-			if (isUpdate) {
-				// update now
-				Record record = leftRecordsToUpdate.add(rightRecord.getMappedRecordUniqueValue());
-				record = fillRecord(record, rightRecord, fieldMaps, false);
-				record.setMappedRecordUniqueValue(rightRecord.getUniqueValue());
-			} else {
-				// create now
-				Record record = leftRecordsToCreate.createEmptyObject();
-				record = fillRecord(record, rightRecord, fieldMaps, false);
-				record.setMappedRecordUniqueValue(rightRecord.getUniqueValue());
-			}
+			log.info(logMessage.toString());
+		} catch (Exception e) {
+			log.log(Level.WARNING, "Error in formatting the log," + message + " {*}", values);
+			log.log(Level.WARNING, logMessage.toString(), e);
 		}
 
-		// TODO :
-		// Conflict mgmt
-		// one way vs two way
-		// fill unique value vs dest unique vals
-		// scheduler
-		// bulk vs single
-		// field validation while copying
-
-		if (leftRecordsToCreate.count() > 0) {
-			for (Record record : leftRecordsToCreate) {
-				log.info("Creating records :" + record);
-			}
-			HashMap<String, String> leftUniqueValueMap = left.createNewRecords(leftRecordsToCreate,
-					rightServiceInfo.getName());
-
-			List<UniqueValuesMapEntity> list = new ArrayList<UniqueValuesMapEntity>();
-			for (Entry<String, String> record : leftUniqueValueMap.entrySet()) {
-				UniqueValuesMapEntity uvMap = new UniqueValuesMapEntity();
-				uvMap.setIntegId(integId);
-				uvMap.setOsyncId(intProps.getOsyncId());
-				uvMap.setLeftUniqueValue(record.getKey());
-				uvMap.setRightUniqueValue(record.getValue());
-				list.add(uvMap);
-			}
-			logEntity.setCreatedLeftCount(leftRecordsToCreate.count());
-			uvMapRepo.saveAll(list);
-		}
-
-		if (rightRecordsToCreate.count() > 0) {
-			for (Record record : rightRecordsToCreate) {
-				log.info("Creating records :" + record);
-			}
-			HashMap<String, String> rightUniqueValueMap = right.createNewRecords(rightRecordsToCreate,
-					leftServiceInfo.getName());
-
-			List<UniqueValuesMapEntity> list = new ArrayList<UniqueValuesMapEntity>();
-			for (Entry<String, String> record : rightUniqueValueMap.entrySet()) {
-				UniqueValuesMapEntity uvMap = new UniqueValuesMapEntity();
-				uvMap.setIntegId(integId);
-				uvMap.setOsyncId(intProps.getOsyncId());
-				uvMap.setRightUniqueValue(record.getKey());
-				uvMap.setLeftUniqueValue(record.getValue());
-				list.add(uvMap);
-			}
-			logEntity.setCreatedRightCount(rightRecordsToCreate.count());
-			uvMapRepo.saveAll(list);
-		}
-
-		if (leftRecordsToUpdate.count() > 0) {
-			logEntity.setUpdatedLeftCount(leftRecordsToUpdate.count());
-			left.updateRecords(leftRecordsToUpdate, rightServiceInfo.getName());
-		}
-
-		if (rightRecordsToUpdate.count() > 0) {
-			logEntity.setUpdatedRightCount(rightRecordsToUpdate.count());
-			right.updateRecords(rightRecordsToUpdate, leftServiceInfo.getName());
-		}
-
-		/*
-		 * Cases: A. Can be first time sync // this will be handled separately
-		 * 
-		 * B. Can be other time sync // we will handle this here
-		 * 
-		 * 1. Fetch the records that were updated after last update for controller left
-		 * 2. Fetch the records that were updated after last update for controller right
-		 * 3. It can be left way or right way
-		 * 
-		 * If one way 1. Take the updated records from source 2. fetch the unique id of
-		 * source 3. using the unique id of source fetch the destination unique id from
-		 * our db 4. if null, add to destination and map the unique id in our local db
-		 * 5. if not null, fetch the record, merge the new value and push
-		 * 
-		 * If two way, 1. Take the updated records from source 2. fetch the unique id of
-		 * source 3. using the unique id of source fetch the destination unique id from
-		 * our db 4. if null, add to destination and map the unique id in our local db
-		 * 5. if not null, fetch the record, merge the new value and push, push back to
-		 * source also 6. Repeat the same for destination and add only new records
-		 * present in dest to source
-		 * 
-		 * 
-		 */
-		logEntity.setOsyncId(osyncId);
-		logEntity.setIntegId(integId);
-		logEntity.setMatchedOnUniqueColumn(matched);
-		logEntity.setLeftSkippedForEmailColumn(leftSkipped);
-		logEntity.setRightSkippedForEmailColumn(rightSkipped);
-		return logRepo.save(logEntity);
 	}
 
 	public ModuleInfoEntity getModuleInfo(Long leftModuleId) {
@@ -374,36 +315,27 @@ public class IntegrationServiceImpl implements IntegrationService {
 		return ControllerRepo.getInstance(serviceName, moduleName);
 	}
 
-	private boolean findMatchedRecord(IntegrationPropsEntity intProps, Controller controller, Record record,
-			boolean isUpdate, String uniqueColumn, boolean isLeftToRight) {
-		// if (record.getMappedRecordUniqueValue() == null &&
-		// intProps.isLookupUniqueColumn()) {
-		String uniqueValue = record.getValue(uniqueColumn).toString();
-		if (uniqueValue != null && !uniqueValue.trim().isEmpty() && !uniqueValue.equals("null")) {
-			Record matchedRecord = controller.getMatchedRecord(uniqueValue);
-			if (matchedRecord != null) {
-				// it is present, create a uvMap and mark it as record to update
-				UniqueValuesMapEntity uniqueValuesMap = new UniqueValuesMapEntity();
-				uniqueValuesMap.setIntegId(intProps.getIntegId());
-				uniqueValuesMap.setOsyncId(intProps.getOsyncId());
-				if (isLeftToRight) {
-					uniqueValuesMap.setLeftUniqueValue(record.getUniqueValue());
-					uniqueValuesMap.setRightUniqueValue(matchedRecord.getUniqueValue());
-				} else {
-					uniqueValuesMap.setRightUniqueValue(record.getUniqueValue());
-					uniqueValuesMap.setLeftUniqueValue(matchedRecord.getUniqueValue());
-				}
-				uvMapRepo.save(uniqueValuesMap);
-
-				record.setMappedRecordUniqueValue(matchedRecord.getUniqueValue());
-				isUpdate = true;
-			}
+	private boolean addUVMapping(IntegrationPropsEntity intProps, Record record, Record matchedRecord,
+			String uniqueColumn, boolean isLeftToRight) {
+		UniqueValuesMapEntity uniqueValuesMap = new UniqueValuesMapEntity();
+		uniqueValuesMap.setIntegId(intProps.getIntegId());
+		uniqueValuesMap.setOsyncId(intProps.getOsyncId());
+		if (isLeftToRight) {
+			uniqueValuesMap.setLeftUniqueValue(record.getUniqueValue());
+			uniqueValuesMap.setRightUniqueValue(matchedRecord.getUniqueValue());
+		} else {
+			uniqueValuesMap.setRightUniqueValue(record.getUniqueValue());
+			uniqueValuesMap.setLeftUniqueValue(matchedRecord.getUniqueValue());
 		}
-		return isUpdate;
+		uvMapRepo.save(uniqueValuesMap);
+
+		record.setMappedRecordUniqueValue(matchedRecord.getUniqueValue());
+		return true;
 	}
 
-	private Record fillRecord(Record destRecord, Record srcRecord, List<FieldMapEntity> fieldMaps,
-			boolean isLeftToRight) {
+	private boolean compareAndFillRecord(Record newRecord, Record recordA, Record recordB,
+			List<FieldMapEntity> fieldMaps, boolean isLeftToRight) {
+		boolean hasAnyChange = false;
 		for (FieldMapEntity fieldMap : fieldMaps) {
 			String srcColumn;
 			String srcColumnType;
@@ -420,32 +352,91 @@ public class IntegrationServiceImpl implements IntegrationService {
 				destColumn = fieldMap.getLeftColumnName();
 				destColumnType = fieldMap.getLeftColumnType();
 			}
-			Object value = srcRecord.getValue(srcColumn);
-			if (isNull(value)) {
-				value = "";
-			}
 			if (!srcColumnType.equals(destColumnType)) {
 				log.info("Source and destination column types are not equal. Continuing for now.");
 			}
-			switch (destColumnType) {
-			case "boolean":
-				destRecord.addNewValue(destColumn, Boolean.valueOf(value.toString()));
-				break;
-			case "integer":
-				try {
-					destRecord.addNewValue(destColumn, Integer.valueOf(value.toString()));
-				} catch (NumberFormatException e) {
+
+			Object valueA = recordA.getValue(srcColumn);
+			Object valueB = recordB == null ? null : recordB.getValue(destColumn);
+			if (isNull(valueA)) {
+				valueA = "";
+			}
+			if (isNull(valueB)) {
+				valueB = "";
+			}
+			if (!isEqual(valueA, valueB, destColumnType)) {
+				hasAnyChange = true;
+				switch (destColumnType) {
+				case "boolean":
+					newRecord.addNewValue(destColumn, Boolean.valueOf(valueA.toString()));
+					break;
+				case "integer":
+					try {
+						newRecord.addNewValue(destColumn, Integer.valueOf(valueA.toString()));
+					} catch (NumberFormatException e) {
+					}
+					break;
+				case "text":
+					newRecord.addNewValue(destColumn, valueA.toString());
+					break;
 				}
-
-				break;
-			case "text":
-				destRecord.addNewValue(destColumn, value.toString());
-				break;
-
 			}
 
 		}
-		return destRecord;
+		return hasAnyChange;
+	}
+
+	private boolean isEqual(Object a, Object b, String type) {
+		if (a == null && b == null) {
+			return true;
+		}
+		if (isNull(a) && isNull(b)) {
+			return true;
+		}
+		String astr = a.toString().trim();
+		String bstr = b.toString().trim();
+		if (astr.equals(bstr)) {
+			return true;
+		}
+		switch (type) {
+		case "text":
+			if (astr.equals(bstr)) {
+				return true;
+			}
+			break;
+		case "boolean":
+			if ("true".equalsIgnoreCase(astr) && "true".equalsIgnoreCase(bstr)) {
+				return true;
+			}
+			if ("true".equalsIgnoreCase(astr) && "1".equalsIgnoreCase(bstr)) {
+				return true;
+			}
+			if ("1".equalsIgnoreCase(astr) && "1".equalsIgnoreCase(bstr)) {
+				return true;
+			}
+			if ("false".equalsIgnoreCase(astr) && "false".equalsIgnoreCase(bstr)) {
+				return true;
+			}
+			if ("false".equalsIgnoreCase(astr) && "0".equalsIgnoreCase(bstr)) {
+				return true;
+			}
+			if ("0".equalsIgnoreCase(astr) && "false".equalsIgnoreCase(bstr)) {
+				return true;
+			}
+			if ("1".equals(astr) && "1".equals(bstr)) {
+				return true;
+			}
+			if ("0".equals(astr) && "0".equals(bstr)) {
+				return true;
+			}
+
+		case "integer":
+			if (astr.equals(bstr)) {
+				return true;
+			}
+			break;
+		}
+		return false;
 	}
 
 	private boolean isNull(Object value) {

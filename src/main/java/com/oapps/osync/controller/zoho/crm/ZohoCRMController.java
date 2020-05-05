@@ -11,6 +11,7 @@ import com.oapps.osync.controller.Controller;
 import com.oapps.osync.fields.Fields;
 import com.oapps.osync.fields.Record;
 import com.oapps.osync.fields.RecordSet;
+import com.zoho.crm.library.api.response.APIResponse;
 import com.zoho.crm.library.api.response.BulkAPIResponse;
 import com.zoho.crm.library.api.response.BulkAPIResponse.EntityResponse;
 import com.zoho.crm.library.crud.ZCRMField;
@@ -78,7 +79,7 @@ public class ZohoCRMController implements Controller {
 
 	private void setAuth() throws Exception {
 		HashMap<String, String> zcrmConfigurations = new HashMap<String, String>();
-		zcrmConfigurations.put("minLogLevel", "ALL");
+		zcrmConfigurations.put("minLogLevel", "WARNING");
 		zcrmConfigurations.put("currentUserEmail", "vijay@oapps.xyz");
 		zcrmConfigurations.put("client_id", "1000.U11DKAIO4UL4CRE9025QNHP0WNDJUH");
 		zcrmConfigurations.put("client_secret", "b993ae2145535c9e9377b71b09db70746148b47143");
@@ -93,34 +94,6 @@ public class ZohoCRMController implements Controller {
 		zcrmConfigurations.put("iamURL", "https://accounts.zoho.com");// optional
 
 		ZCRMRestClient.initialize(zcrmConfigurations);
-	}
-
-	@Override
-	public RecordSet fetchUpdatedRecords(Long osyncId, Long lastSyncTime) {
-		try {
-			setAuth();
-			ZCRMModule module = ZCRMModule.getInstance("Contacts");
-			BulkAPIResponse response = module.getRecords();
-			@SuppressWarnings("unchecked")
-			List<ZCRMRecord> records = (List<ZCRMRecord>) response.getData();
-			RecordSet recordSet = RecordSet.init("zohocrm-contacts", "id");
-			for (ZCRMRecord zcrmRecord : records) {
-				Record record = recordSet.add(zcrmRecord.getEntityId().toString());
-				for (Entry<String, Object> entry : zcrmRecord.getData().entrySet()) {
-					Object value = entry.getValue();
-					if (!isNull(value)) {
-						record.addNewValue(entry.getKey(), value);
-					} else {
-						record.addNewValue(entry.getKey(), null);
-					}
-				}
-			}
-			return recordSet;
-
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return null;
 	}
 
 	@Override
@@ -194,33 +167,99 @@ public class ZohoCRMController implements Controller {
 	}
 
 	@Override
-	public Record getMatchedRecord(String value) {
+	public RecordSet fetchRecords(int startPage, int totalRecords, Long startTime) {
 		try {
 			setAuth();
 			ZCRMModule module = ZCRMModule.getInstance("Contacts");
-			BulkAPIResponse response = module.searchByEmail(value, 1, 1);
-			if (response.getData().size() > 0) {
-				ZCRMRecord zcRecord = (ZCRMRecord) response.getData().get(0);
-				Record record = new Record();
-				record.setColumnValues(zcRecord.getData());
-				record.setUniqueValue(zcRecord.getEntityId().toString());
-				return record;
+			BulkAPIResponse response = module.getRecords(null, startPage, totalRecords);
+			@SuppressWarnings("unchecked")
+			List<ZCRMRecord> records = (List<ZCRMRecord>) response.getData();
+			RecordSet recordSet = RecordSet.init("zohocrm-contacts", "id");
+			for (ZCRMRecord zcrmRecord : records) {
+				Record record = recordSet.add(zcrmRecord.getEntityId().toString());
+				for (Entry<String, Object> entry : zcrmRecord.getData().entrySet()) {
+					Object value = entry.getValue();
+					if (!isNull(value)) {
+						record.addNewValue(entry.getKey(), value);
+					} else {
+						record.addNewValue(entry.getKey(), null);
+					}
+				}
 			}
+			log.info("Records fetched from zcrm :" + recordSet.count() );
+			return recordSet;
+
 		} catch (Exception e) {
-			log.log(Level.SEVERE, "Error on fetchingMatched record, " + value, e);
+			e.printStackTrace();
 		}
 		return null;
 	}
 
 	@Override
-	public RecordSet fetchRecords(int startPage, int totalRecords, Long startTime, Long endTime) {
-		// TODO Auto-generated method stub
+	public RecordSet getMatchedRecordsById(List<String> recordsToFetchRemote) {
+		try {
+			setAuth();
+			ZCRMModule module = ZCRMModule.getInstance("Contacts");
+			RecordSet rs = RecordSet.init("zohocrm", "id");
+			for (String entityId : recordsToFetchRemote) {
+				APIResponse response = module.getRecord(Long.parseLong(entityId));
+				if (response.getData() != null) {
+					ZCRMRecord zrecord = (ZCRMRecord) response.getData();
+					Record record = rs.add(zrecord.getEntityId().toString());
+					record.setColumnValues(zrecord.getData());
+					record.setUniqueValue(zrecord.getEntityId().toString());
+
+					for (Entry<String, Object> entry : zrecord.getData().entrySet()) {
+						Object value = entry.getValue();
+						if (!isNull(value)) {
+							record.addNewValue(entry.getKey(), value);
+						} else {
+							record.addNewValue(entry.getKey(), null);
+						}
+					}
+
+				}
+
+			}
+			log.info("Matched Records fetched from zcrm by Id :" + rs.count() );
+			return rs;
+		} catch (Exception e) {
+			log.log(Level.SEVERE, "Error on fetchingMatched record, " + recordsToFetchRemote, e);
+		}
 		return null;
 	}
 
 	@Override
-	public RecordSet getMatchedRecordsByUniqueId(List<String> recordsToFetchRemote) {
-		// TODO Auto-generated method stub
+	public RecordSet getMatchedRecordsByUniqueColumn(Collection<String> values) {
+		try {
+			setAuth();
+			ZCRMModule module = ZCRMModule.getInstance("Contacts");
+			RecordSet rs = RecordSet.init("zohocrm", "id");
+			for (String email : values) {
+				BulkAPIResponse response = module.searchByEmail(email);
+				if (response.getData().size() > 0) {
+					ZCRMRecord zrecord = (ZCRMRecord) response.getData().get(0);
+					Record record = rs.add(zrecord.getEntityId().toString());
+					record.setColumnValues(zrecord.getData());
+					record.setUniqueValue(zrecord.getEntityId().toString());
+
+					for (Entry<String, Object> entry : zrecord.getData().entrySet()) {
+						Object value = entry.getValue();
+						if (!isNull(value)) {
+							record.addNewValue(entry.getKey(), value);
+						} else {
+							record.addNewValue(entry.getKey(), null);
+						}
+					}
+
+				}
+
+			}
+			log.info("Matched Records fetched from zcrm by unique column :" + rs.count() );
+			return rs;
+		} catch (Exception e) {
+			log.log(Level.SEVERE, "Error on fetchingMatched record, " + values, e);
+		}
 		return null;
 	}
 

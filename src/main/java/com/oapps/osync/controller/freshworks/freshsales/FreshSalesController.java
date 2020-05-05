@@ -1,6 +1,8 @@
 package com.oapps.osync.controller.freshworks.freshsales;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -40,6 +42,10 @@ public class FreshSalesController implements Controller {
 						String id = fieldObj.optString("name");
 						String displayName = fieldObj.optString("label");
 						String type = fieldObj.optString("type");
+						boolean isDefault = fieldObj.optBoolean("default", true);
+						if (!isDefault) {
+							id = "custom_field." + id;
+						}
 						switch (type) {
 						case "text":
 							field.text(id, displayName);
@@ -51,7 +57,7 @@ public class FreshSalesController implements Controller {
 							field.number(id, displayName);
 							break;
 						default:
-							System.out.println(type + "::::" + id + "::::" + displayName);
+							System.out.println("unsupported-type: " + type + ":" + id + ":" + displayName);
 						}
 					}
 				}
@@ -73,37 +79,28 @@ public class FreshSalesController implements Controller {
 	}
 
 	@Override
-	public RecordSet fetchUpdatedRecords(Long osyncId, Long lastSyncTime) {
-		try {
-			String response = HttpUtil.get("https://oapps.freshsales.io/api/contacts/view/13000503716", getAuthMap());
-			JSONObject json = new JSONObject(response);
-			JSONArray contactsArray = json.optJSONArray("contacts");
-			RecordSet recordSet = RecordSet.init("freshsales-contacts", "id");
-			for (int i = 0; i < contactsArray.length(); i++) {
-				JSONObject contactObj = contactsArray.optJSONObject(i);
-				Record record = recordSet.add(contactObj.optString("id"));
-				Iterator<String> iterator = contactObj.keys();
-				while (iterator.hasNext()) {
-					String key = iterator.next();
-					record.addNewValue(key, contactObj.get(key));
-				}
-			}
-			return recordSet;
-
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return null;
-	}
-
-	@Override
 	public HashMap<String, String> createNewRecords(RecordSet recordSet, String syncFrom) {
 
 		HashMap<String, String> uvMap = new HashMap<String, String>();
 		for (Record record : recordSet) {
 			try {
 				JSONObject json = record.columnValuesAsJson();
+				Iterator<String> keys = json.keys();
+				JSONObject cfJson = new JSONObject();
+				List<String> keysToRemove = new ArrayList<String>();
+				while (keys.hasNext()) {
+					String key = keys.next();
+					if (key.startsWith("custom_field")) {
+						cfJson.put(key.replaceFirst("custom_field.", ""), json.get(key));
+						//json.remove(key);
+						keysToRemove.add(key);
+					}
+				}
+				for (String key : keysToRemove) {
+					json.remove(key);
+				}
+				json.put("custom_field", cfJson);
+
 				JSONObject contactJson = new JSONObject();
 				contactJson.put("contact", json);
 				log.info("posting this: " + json.toString());
@@ -133,8 +130,27 @@ public class FreshSalesController implements Controller {
 		for (Record record : recordSet) {
 			try {
 				JSONObject json = record.columnValuesAsJson();
+				Iterator<String> keys = json.keys();
+				JSONObject cfJson = new JSONObject();
+				
+				List<String> keysToRemove = new ArrayList<String>();
+				while (keys.hasNext()) {
+					String key = keys.next();
+					if (key.startsWith("custom_field")) {
+						cfJson.put(key.replaceFirst("custom_field.", ""), json.get(key));
+						//json.remove(key);
+						keysToRemove.add(key);
+					}
+				}
+				for (String key : keysToRemove) {
+					json.remove(key);
+				}
+				
+				json.put("custom_field", cfJson);
+
 				JSONObject contactJson = new JSONObject();
 				contactJson.put("contact", json);
+
 				log.info("updating this: " + json.toString());
 				String response = HttpUtil.put("https://oapps.freshsales.io/api/contacts/" + record.getUniqueValue(),
 						contactJson.toString(), getAuthMap());
@@ -170,27 +186,33 @@ public class FreshSalesController implements Controller {
 	}
 
 	@Override
-	public Record getMatchedRecord(String value) {
-		String searchString = "{ \"filter_rule\"\n"
-				+ "			 : [{\"attribute\" : \"contact_email.email\", \"operator\":\"is_in\",\n"
-				+ "			 \"value\":\"" + value.trim() + "\"}] }";
-
+	public RecordSet fetchRecords(int startPage, int totalRecords, Long startTime) {
 		try {
-			String response = HttpUtil.post("https://oapps.freshsales.io/api/filtered_search/contact", searchString,
-					getAuthMap());
+			String response = HttpUtil.get("https://oapps.freshsales.io/api/contacts/view/13000503716?per_page="
+					+ totalRecords + "&page=" + startPage, getAuthMap());
 			JSONObject json = new JSONObject(response);
 			JSONArray contactsArray = json.optJSONArray("contacts");
-			if (contactsArray.length() > 0) {
-				JSONObject contactObj = contactsArray.optJSONObject(0);
-				Record record = new Record();
-				record.setUniqueValue(contactObj.optString("id"));
+			RecordSet recordSet = RecordSet.init("freshsales-contacts", "id");
+			for (int i = 0; i < contactsArray.length(); i++) {
+				JSONObject contactObj = contactsArray.optJSONObject(i);
+				Record record = recordSet.add(contactObj.optString("id"));
 				Iterator<String> iterator = contactObj.keys();
 				while (iterator.hasNext()) {
 					String key = iterator.next();
-					record.addNewValue(key, contactObj.get(key));
+					if ("custom_field".equals(key)) {
+						JSONObject customField = contactObj.optJSONObject(key);
+						Iterator<String> cfKeys = customField.keys();
+						while (cfKeys.hasNext()) {
+							String cfKey = cfKeys.next();
+							record.addNewValue(key + "." + cfKey, customField.get(cfKey));
+						}
+					} else {
+						record.addNewValue(key, contactObj.get(key));
+					}
 				}
-				return record;
 			}
+			log.info("Records fetched from freshsales :" + recordSet.count() );
+			return recordSet;
 
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -200,14 +222,82 @@ public class FreshSalesController implements Controller {
 	}
 
 	@Override
-	public RecordSet fetchRecords(int startPage, int totalRecords, Long startTime, Long endTime) {
-		// TODO Auto-generated method stub
-		return null;
+	public RecordSet getMatchedRecordsById(List<String> recordsToFetchRemote) {
+		RecordSet recordSet = RecordSet.init("freshsales-contacts", "id");
+		for (String uniqueId : recordsToFetchRemote) {
+			try {
+				String response = HttpUtil.get("https://oapps.freshsales.io/api/contacts/" + uniqueId.trim(),
+						getAuthMap());
+				JSONObject json = new JSONObject(response);
+				JSONObject contactObj = json.optJSONObject("contact");
+				Record record = recordSet.add(contactObj.optString("id"));
+				Iterator<String> iterator = contactObj.keys();
+				while (iterator.hasNext()) {
+					String key = iterator.next();
+					if ("custom_field".equals(key)) {
+						JSONObject customField = contactObj.optJSONObject(key);
+						Iterator<String> cfKeys = customField.keys();
+						while (cfKeys.hasNext()) {
+							String cfKey = cfKeys.next();
+							record.addNewValue(key + "." + cfKey, customField.get(cfKey));
+						}
+					} else {
+						record.addNewValue(key, contactObj.get(key));
+					}
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+
+		}
+		log.info("Matched Records fetched from freshsales :" + recordSet.count() );
+		return recordSet;
 	}
 
 	@Override
-	public RecordSet getMatchedRecordsByUniqueId(List<String> recordsToFetchRemote) {
-		// TODO Auto-generated method stub
+	public RecordSet getMatchedRecordsByUniqueColumn(Collection<String> values) {
+		JSONObject searchJson = new JSONObject();
+		JSONArray filterRule = new JSONArray();
+
+		JSONObject filterObject = new JSONObject();
+		filterObject.put("attribute", "contact_email.email");
+		filterObject.put("operator", "is_in");
+		filterObject.put("value", values);
+		filterRule.put(filterObject);
+
+		searchJson.put("filter_rule", filterRule);
+
+		try {
+			String response = HttpUtil.post("https://oapps.freshsales.io/api/filtered_search/contact",
+					searchJson.toString(), getAuthMap());
+			JSONObject json = new JSONObject(response);
+			JSONArray contactsArray = json.optJSONArray("contacts");
+			RecordSet rs = RecordSet.init("freshsales-contacts", "id");
+			for (int i = 0; i < contactsArray.length(); i++) {
+				JSONObject contactObj = contactsArray.optJSONObject(i);
+				Record record = rs.add(contactObj.optString("id"));
+				Iterator<String> iterator = contactObj.keys();
+				while (iterator.hasNext()) {
+					String key = iterator.next();
+					if ("custom_field".equals(key)) {
+						JSONObject customField = contactObj.optJSONObject(key);
+						Iterator<String> cfKeys = customField.keys();
+						while (cfKeys.hasNext()) {
+							String cfKey = cfKeys.next();
+							record.addNewValue(key + "." + cfKey, customField.get(cfKey));
+						}
+					} else {
+						record.addNewValue(key, contactObj.get(key));
+					}
+				}
+			}
+			log.info("Matched Records fetched from freshsales :" + rs.count() );
+			return rs;
+
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		return null;
 	}
 
