@@ -14,7 +14,7 @@ public interface ServiceAuthInfoRepository extends CrudRepository<ServiceAuthInf
 	
 	ServiceAuthInfoEntity save(ServiceAuthInfoEntity authInfoObj);
 	
-	ServiceAuthInfoEntity findByOsyncIdAndServiceIdAndIntegId(Long osyncId, Long serviceId, Long integ_id);
+	ServiceAuthInfoEntity findByOsyncIdAndServiceIdAndIntegId(Long osyncId, Long serviceId, Long integId);
 
 	
 }
