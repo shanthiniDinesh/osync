@@ -165,7 +165,7 @@ public class IntegrationController {
 
 	
 	@PostMapping(path = "/api/v1/integration/{integ_id}/startSync", consumes = "application/json", produces = "application/json")
-	public @ResponseBody IntegrationPropsEntity startSync(@PathVariable("integ_id") Long integId,@RequestBody String payload) {
+	public @ResponseBody IntegrationPropsEntity start_sync(@PathVariable("integ_id") Long integId,@RequestBody String payload) {
 		
 		JSONObject payloadJson = new JSONObject(payload);
 		long masterService=payloadJson.optLong("masterService");
