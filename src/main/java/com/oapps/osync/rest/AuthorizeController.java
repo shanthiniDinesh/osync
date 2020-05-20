@@ -74,8 +74,10 @@ public class AuthorizeController {
 	}
 	@DeleteMapping(path = "/api/v1/revoke")
 	public void revoke(@RequestParam String serviceId,@RequestParam String osyncId, @RequestParam String integId) {
-		if(serviceId != null && osyncId != null) {
+		if(serviceId != null && osyncId != null && integId != null ) {
 			serviceAuthRepo.delete(serviceAuthRepo.findByOsyncIdAndServiceIdAndIntegId(Long.valueOf(osyncId),Long.valueOf(serviceId),Long.valueOf(integId) ));
 		}
-	} 
+	}
+	
+	
 }

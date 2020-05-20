@@ -151,6 +151,7 @@ public class IntegrationController {
 		String leftModuleId = payloadJson.optString("left_module_id");
 		String rightModuleId = payloadJson.optString("right_module_id");
 		int syncDirection = payloadJson.optInt("direction");
+		
 		Optional<IntegrationPropsEntity> findById = intPropsRepo.findById(integId);
 		if (findById.isPresent()) {
 			IntegrationPropsEntity integrationPropsEntity = findById.get();
@@ -162,6 +163,25 @@ public class IntegrationController {
 		return null;
 	}
 
+	
+	@PostMapping(path = "/api/v1/integration/{integ_id}/startSync", consumes = "application/json", produces = "application/json")
+	public @ResponseBody IntegrationPropsEntity startSync(@PathVariable("integ_id") Long integId,@RequestBody String payload) {
+		
+		JSONObject payloadJson = new JSONObject(payload);
+		long masterService=payloadJson.optLong("masterService");
+		long syncDuration=payloadJson.optLong("syncDuration");
+		
+		Optional<IntegrationPropsEntity> findById = intPropsRepo.findById(integId);
+		if (findById.isPresent()) {
+			IntegrationPropsEntity integrationPropsEntity = findById.get();
+			integrationPropsEntity.setMasterService(masterService);
+			integrationPropsEntity.setSyncDuration(syncDuration);
+			return intPropsRepo.save(integrationPropsEntity);
+		}
+		return null;
+	}
+	
+	
 	@GetMapping(path = "/api/v1/integration/{integ_id}")
 	public @ResponseBody Optional<IntegrationPropsEntity> getIntegration(@PathVariable("integ_id") Long integId) {
 		Optional<IntegrationPropsEntity> findById = intPropsRepo.findById(integId);
@@ -176,6 +196,7 @@ public class IntegrationController {
 		entity.setOsyncId(CurrentContext.getCurrentOsyncId());
 		return intPropsRepo.save(entity);
 	}
+	
 
 	@PostMapping(path = "/api/v1/integration/{integ_id}/fields")
 	public @ResponseBody List<FieldMapEntity> createFieldsMapping(@PathVariable("integ_id") Long integId,
@@ -299,4 +320,7 @@ public class IntegrationController {
 
 		return url;
 	}
+	
 }
+	
+	

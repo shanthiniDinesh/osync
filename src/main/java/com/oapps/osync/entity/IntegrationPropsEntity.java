@@ -63,6 +63,10 @@ public class IntegrationPropsEntity {
 	@Getter
 	@Setter
 	private Long masterService;
+	
+	@Getter
+	@Setter
+	private Long syncDuration;
 
 	@Getter
 	@Setter
@@ -92,5 +96,7 @@ public class IntegrationPropsEntity {
 	@Getter
 	@Setter
 	private List<FieldMapEntity> fields;
+
+	
 
 }
