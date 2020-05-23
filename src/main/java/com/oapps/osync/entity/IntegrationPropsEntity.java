@@ -5,6 +5,8 @@ import java.util.List;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -17,6 +19,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.oapps.osync.service.OsyncEnums.IntegrationSyncStatus;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -63,6 +66,10 @@ public class IntegrationPropsEntity {
 	@Getter
 	@Setter
 	private Long masterService;
+	
+	@Getter
+	@Setter
+	private Long syncDuration;
 
 	@Getter
 	@Setter
@@ -70,7 +77,7 @@ public class IntegrationPropsEntity {
 
 	@Getter
 	@Setter
-	private int status=1;
+	private int status=0;
 
 	@Getter
 	@Setter
@@ -92,5 +99,7 @@ public class IntegrationPropsEntity {
 	@Getter
 	@Setter
 	private List<FieldMapEntity> fields;
+
+	
 
 }

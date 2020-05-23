@@ -4,6 +4,7 @@ import java.util.Date;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EntityListeners;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -14,6 +15,8 @@ import javax.persistence.TemporalType;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import com.oapps.osync.invoker.Invoker;
+
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -21,6 +24,7 @@ import lombok.ToString;
 @Entity
 @ToString
 @Table(name = "ServiceAuthInfo")
+@EntityListeners(Invoker.class)
 public class ServiceAuthInfoEntity {
 
 	@Id
@@ -46,6 +50,7 @@ public class ServiceAuthInfoEntity {
 	
 	@Getter
 	@Setter
+	@Column(nullable = false)
 	private Long integId;
 	
 	@Getter

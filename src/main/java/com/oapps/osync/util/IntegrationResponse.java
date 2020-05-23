@@ -15,7 +15,9 @@ import lombok.ToString;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class IntegrationResponse {
 	
+	@JsonProperty("integId")
 	private String id;
+	private String osyncId;
 	private String hash;
 	
 	@JsonProperty("data")
@@ -49,6 +51,7 @@ public class IntegrationResponse {
 	public class AuthDetails {
 		private String type;
 		private String url;
+		private boolean isAuthorized;
 		
 	}
 	

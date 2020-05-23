@@ -24,6 +24,7 @@ import com.oapps.osync.entity.DefaultFieldMapEntity;
 import com.oapps.osync.entity.FieldMapEntity;
 import com.oapps.osync.entity.IntegrationPropsEntity;
 import com.oapps.osync.entity.ModuleInfoEntity;
+import com.oapps.osync.entity.ServiceAuthInfoEntity;
 import com.oapps.osync.entity.ServiceInfoEntity;
 import com.oapps.osync.entity.SyncLogEntity;
 import com.oapps.osync.fields.Fields;
@@ -33,26 +34,30 @@ import com.oapps.osync.repository.DefaultFieldsRepo;
 import com.oapps.osync.repository.FieldMapRepository;
 import com.oapps.osync.repository.IntegrationPropsRepository;
 import com.oapps.osync.repository.ModuleInfoRepository;
+import com.oapps.osync.repository.ServiceAuthInfoRepository;
 import com.oapps.osync.repository.ServiceInfoRepository;
 import com.oapps.osync.security.CurrentContext;
 import com.oapps.osync.service.IntegrationService;
 import com.oapps.osync.service.OsyncException;
 import com.oapps.osync.util.IntegrationResponse;
-import com.oapps.osync.util.OSyncAuthorizerUtil;
+import com.oapps.osync.util.AuthorizerUtil;
 
 import lombok.extern.java.Log;
 
 @RestController
 @Log
 public class IntegrationController {
-	
+
 	ObjectMapper mapper = new ObjectMapper();
-	
-	@Autowired
-	AccountInfoRepository accountRepo;
 
 	@Autowired
-	ServiceInfoRepository serviceRepo; 
+	AccountInfoRepository accountRepo;
+	
+	@Autowired
+	ServiceAuthInfoRepository serviceAuthInfoRepo;
+
+	@Autowired
+	ServiceInfoRepository serviceRepo;
 
 	@Autowired
 	IntegrationPropsRepository intPropsRepo;
@@ -68,6 +73,9 @@ public class IntegrationController {
 
 	@Autowired
 	DefaultFieldsMappingRepo defaultFieldsMapRepo;
+	
+	@Autowired
+	ServiceAuthInfoRepository serviceAuthRepo;
 
 	@Autowired
 	IntegrationService intService;
@@ -75,7 +83,7 @@ public class IntegrationController {
 	@GetMapping(path = "/testsync")
 	public @ResponseBody SyncLogEntity testSync(@RequestParam("integ_id") Long integId) throws OsyncException {
 		log.info("Test sync started...");
-		return intService.sync(integId);
+		return intService.sync2(CurrentContext.getCurrentOsyncId(), integId);
 	}
 
 	@GetMapping(path = "/api/v1/default-fields")
@@ -151,6 +159,7 @@ public class IntegrationController {
 		String leftModuleId = payloadJson.optString("left_module_id");
 		String rightModuleId = payloadJson.optString("right_module_id");
 		int syncDirection = payloadJson.optInt("direction");
+		
 		Optional<IntegrationPropsEntity> findById = intPropsRepo.findById(integId);
 		if (findById.isPresent()) {
 			IntegrationPropsEntity integrationPropsEntity = findById.get();
@@ -162,6 +171,37 @@ public class IntegrationController {
 		return null;
 	}
 
+	
+	@PostMapping(path = "/api/v1/integration/{integ_id}/start-sync", consumes = "application/json", produces = "application/json")
+	public @ResponseBody IntegrationPropsEntity startSync(@PathVariable("integ_id") Long integId,@RequestBody String payload) {
+		
+		JSONObject payloadJson = new JSONObject(payload);
+		long masterService=payloadJson.optLong("masterService");
+		long syncDuration=payloadJson.optLong("syncDuration");
+		long leftServiceId=payloadJson.optLong("leftServiceId");
+		long rightServiceId=payloadJson.optLong("rightServiceId");
+		long osyncId=payloadJson.optLong("osyncId");
+
+
+		IntegrationPropsEntity findByOsyncIdAndIntegId = intPropsRepo.findByOsyncIdAndIntegId(osyncId,integId);
+		FieldMapEntity findByOsyncIdAndIntegIdField = fieldMapRepo.findByOsyncIdAndIntegId(osyncId,integId);
+		ServiceAuthInfoEntity findTopByIntegIdAndLeftServiceId = serviceAuthInfoRepo.findTopByIntegIdAndServiceId(integId,leftServiceId);
+		ServiceAuthInfoEntity findTopByIntegIdAndRightServiceId = serviceAuthInfoRepo.findTopByIntegIdAndServiceId(integId,rightServiceId);
+		Optional<IntegrationPropsEntity> findById = intPropsRepo.findById(integId);
+		if (findById.isPresent() ) {
+			if(findByOsyncIdAndIntegId!=null && findByOsyncIdAndIntegIdField!=null && findTopByIntegIdAndLeftServiceId!=null && findTopByIntegIdAndRightServiceId!=null) {	
+		
+			IntegrationPropsEntity integrationPropsEntity = findById.get();
+			integrationPropsEntity.setMasterService(masterService);
+			integrationPropsEntity.setSyncDuration(syncDuration);
+			integrationPropsEntity.setStatus(1);
+			return intPropsRepo.save(integrationPropsEntity);
+		}
+		}
+		return null;
+	}
+	
+	
 	@GetMapping(path = "/api/v1/integration/{integ_id}")
 	public @ResponseBody Optional<IntegrationPropsEntity> getIntegration(@PathVariable("integ_id") Long integId) {
 		Optional<IntegrationPropsEntity> findById = intPropsRepo.findById(integId);
@@ -176,6 +216,7 @@ public class IntegrationController {
 		entity.setOsyncId(CurrentContext.getCurrentOsyncId());
 		return intPropsRepo.save(entity);
 	}
+	
 
 	@PostMapping(path = "/api/v1/integration/{integ_id}/fields")
 	public @ResponseBody List<FieldMapEntity> createFieldsMapping(@PathVariable("integ_id") Long integId,
@@ -192,34 +233,35 @@ public class IntegrationController {
 		return getAllFields(integId);
 	}
 
-	@PostMapping(path = "/api/v1/integrate" , consumes = "application/json", produces = "application/json")
+	@PostMapping(path = "/api/v1/integrate", consumes = "application/json", produces = "application/json")
 	public IntegrationResponse integrate(@RequestBody String payload) {
-		
+
 		IntegrationResponse integResponse = new IntegrationResponse();
-		
+
 		AccountInfoEntity accInfoObject;
 		IntegrationPropsEntity integInfoObj;
 		try {
 			JSONObject payloadJson = new JSONObject(payload);
 			mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 			accInfoObject = mapper.readValue(payload, AccountInfoEntity.class);
-			
-			AccountInfoEntity findByRemoteIdentifier = accountRepo.findTopByRemoteIdentifierAndEmail(accInfoObject.getRemoteIdentifier(), accInfoObject.getEmail());
-			
+
+			AccountInfoEntity findByRemoteIdentifier = accountRepo
+					.findTopByRemoteIdentifierAndEmail(accInfoObject.getRemoteIdentifier(), accInfoObject.getEmail());
+
 			if (findByRemoteIdentifier == null) {
 				accInfoObject = accountRepo.save(accInfoObject);
 			} else {
 				accInfoObject = findByRemoteIdentifier;
 			}
-			
-			
+
 			payloadJson.put("osyncId", accInfoObject.getOsyncId());
-			payload =payloadJson.toString();
+			payload = payloadJson.toString();
 			integInfoObj = mapper.readValue(payload, IntegrationPropsEntity.class);
-			
-			IntegrationPropsEntity findByServiceIds = intPropsRepo.findTopByOsyncIdAndLeftServiceIdAndRightServiceId(accInfoObject.getOsyncId(), integInfoObj.getLeftServiceId(), integInfoObj.getRightServiceId());
-			
-			if(findByServiceIds == null) {
+
+			IntegrationPropsEntity findByServiceIds = intPropsRepo.findTopByOsyncIdAndLeftServiceIdAndRightServiceId(
+					accInfoObject.getOsyncId(), integInfoObj.getLeftServiceId(), integInfoObj.getRightServiceId());
+
+			if (findByServiceIds == null) {
 				integInfoObj = intPropsRepo.save(integInfoObj);
 			} else {
 				integInfoObj = findByServiceIds;
@@ -227,51 +269,65 @@ public class IntegrationController {
 			//need to add authorization header
 			
 			integResponse.setId(integInfoObj.getIntegId()+"");
+			integResponse.setOsyncId(accInfoObject.getOsyncId()+"");
 			
 			ServiceInfoEntity leftServiceAuthObj = serviceRepo.findByServiceId(integInfoObj.getLeftServiceId());
-			
-			if(leftServiceAuthObj.getAuthType().equals("oauth")) {
-				String leftAuthUrl = constructOAuthUrl(leftServiceAuthObj,integInfoObj);
+
+			if (leftServiceAuthObj.getAuthType().equals("oauth")) {
+				String leftAuthUrl = constructOAuthUrl(leftServiceAuthObj, integInfoObj);
 				IntegrationResponse.ServiceDetails leftServiceDetails = integResponse.new ServiceDetails();
-				
-				leftServiceDetails.setServiceId(leftServiceAuthObj.getServiceId()+"");
+
+				leftServiceDetails.setServiceId(leftServiceAuthObj.getServiceId() + "");
 				leftServiceDetails.setServiceName(leftServiceAuthObj.getName());
-				
+
 				IntegrationResponse.AuthDetails leftAuthDetails = integResponse.new AuthDetails();
-				
+
 				leftAuthDetails.setType("oauth");
 				leftAuthDetails.setUrl(leftAuthUrl);
+
+				
+				ServiceAuthInfoEntity byOsyncIdAndServiceIdAndIntegId = serviceAuthRepo.findByOsyncIdAndServiceIdAndIntegId(accInfoObject.getOsyncId(), leftServiceAuthObj.getServiceId(),integInfoObj.getIntegId());
+				if(byOsyncIdAndServiceIdAndIntegId == null) {
+					leftAuthDetails.setAuthorized(false);
+				} else {
+					leftAuthDetails.setAuthorized(true);
+				}
 				
 				leftServiceDetails.setAuthDetails(leftAuthDetails);
-				
+
 				integResponse.setLeftDetails(leftServiceDetails);
-				
-			}
-			
-			ServiceInfoEntity rightServiceAuthObj = serviceRepo.findByServiceId(integInfoObj.getRightServiceId());
-			
-			if(rightServiceAuthObj.getAuthType().equals("oauth")) {
-				String rightAuthUrl = constructOAuthUrl(rightServiceAuthObj,integInfoObj);
-				IntegrationResponse.ServiceDetails rightServiceDetails = integResponse.new ServiceDetails();
-				
-				rightServiceDetails.setServiceId(rightServiceAuthObj.getServiceId()+"");
-				rightServiceDetails.setServiceName(rightServiceAuthObj.getName());
-				
-				
-				IntegrationResponse.AuthDetails rightAuthDetails = integResponse.new AuthDetails();
-				
-				rightAuthDetails.setType("oauth");
-				rightAuthDetails.setUrl(rightAuthUrl);
-				
-				rightServiceDetails.setAuthDetails(rightAuthDetails);
-				
-				integResponse.setRightDetails(rightServiceDetails);
-				
+
 			}
 
-			
+			ServiceInfoEntity rightServiceAuthObj = serviceRepo.findByServiceId(integInfoObj.getRightServiceId());
+
+			if (rightServiceAuthObj.getAuthType().equals("oauth")) {
+				String rightAuthUrl = constructOAuthUrl(rightServiceAuthObj, integInfoObj);
+				IntegrationResponse.ServiceDetails rightServiceDetails = integResponse.new ServiceDetails();
+
+				rightServiceDetails.setServiceId(rightServiceAuthObj.getServiceId() + "");
+				rightServiceDetails.setServiceName(rightServiceAuthObj.getName());
+
+				IntegrationResponse.AuthDetails rightAuthDetails = integResponse.new AuthDetails();
+
+				rightAuthDetails.setType("oauth");
+				rightAuthDetails.setUrl(rightAuthUrl);
+
+				rightServiceDetails.setAuthDetails(rightAuthDetails);
+
+				ServiceAuthInfoEntity byOsyncIdAndServiceIdAndIntegId = serviceAuthRepo.findByOsyncIdAndServiceIdAndIntegId(accInfoObject.getOsyncId(), leftServiceAuthObj.getServiceId(),integInfoObj.getIntegId());
+				if(byOsyncIdAndServiceIdAndIntegId == null) {
+					rightAuthDetails.setAuthorized(false);
+				} else {
+					rightAuthDetails.setAuthorized(true);
+				}
+				
+				integResponse.setRightDetails(rightServiceDetails);
+
+			}
+
 			return integResponse;
-			
+
 		} catch (JsonMappingException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -279,23 +335,26 @@ public class IntegrationController {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		
+
 		return null;
 
 	}
+
 	private String constructOAuthUrl(ServiceInfoEntity serviceAuthObj, IntegrationPropsEntity intInfoObj) {
 		String url = "";
-		
+
 		String authorizeUrl = serviceAuthObj.getAuthorizeUrl();
 		String authScopes = serviceAuthObj.getAuthScopes();
 		String clientId = serviceAuthObj.getClientId();
 		
 		String stateParam = intInfoObj.getOsyncId()+"::"+serviceAuthObj.getServiceId()+"::"+intInfoObj.getIntegId();
 		
-		url = authorizeUrl +"?response_type=code&client_id="+clientId+"&scope="+authScopes+"&redirect_uri="+OSyncAuthorizerUtil.redirectUrl+"&state="+stateParam;
-//		url += "&prompt=consent";
-		
+		url = authorizeUrl +"?response_type=code&client_id="+clientId+"&scope="+authScopes+"&redirect_uri="+AuthorizerUtil.redirectUrl+"&state="+stateParam;
+		url += "&access_type=offline";
+
 		return url;
 	}
+	
 }
+	
+	

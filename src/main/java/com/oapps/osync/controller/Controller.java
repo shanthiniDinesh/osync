@@ -1,10 +1,10 @@
 package com.oapps.osync.controller;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 
 import com.oapps.osync.fields.Fields;
-import com.oapps.osync.fields.Record;
 import com.oapps.osync.fields.RecordSet;
 
 public interface Controller {
@@ -16,15 +16,6 @@ public interface Controller {
 	 * @return
 	 */
 	public Fields getFields();
-
-	/**
-	 * Get the lastest records post the syncup
-	 * 
-	 * @param accountId
-	 * @param lastSyncTime
-	 * @return
-	 */
-	public RecordSet fetchUpdatedRecords(Long osyncId, Long lastSyncTime);
 
 	/**
 	 * 
@@ -62,13 +53,25 @@ public interface Controller {
 	public void updateRecords(RecordSet leftRecordsToUpdate, String syncFrom);
 
 	/**
-	 * Fetch a single record using the unique column
-	 * 
-	 * @param value
+	 * Fetch the records from services.
+	 * @param startPage - Number of the page
+	 * @param totalRecords - Total records per page
+	 * @param startTime - Start time of the changes. If -1, then its a first time sync
+	 * @return
 	 */
-	public Record getMatchedRecord(String value);
+	public RecordSet fetchRecords(int startPage, int totalRecords, Long startTime);
 
-	public RecordSet fetchRecords(int startPage, int totalRecords, Long startTime, Long endTime);
+	/**
+	 * Matching records based on the Unique Identifier. It can be a ID
+	 * @param recordsToFetchRemote
+	 * @return
+	 */
+	public RecordSet getMatchedRecordsById(List<String> recordsToFetchRemote);
 
-	public RecordSet getMatchedRecordsByUniqueId(List<String> recordsToFetchRemote);
+	/**
+	 * List of values of unique columns. Return the record set
+	 * @param values
+	 * @return
+	 */
+	public RecordSet getMatchedRecordsByUniqueColumn(Collection<String> values);
 }
