@@ -24,6 +24,7 @@ import com.oapps.osync.entity.DefaultFieldMapEntity;
 import com.oapps.osync.entity.FieldMapEntity;
 import com.oapps.osync.entity.IntegrationPropsEntity;
 import com.oapps.osync.entity.ModuleInfoEntity;
+import com.oapps.osync.entity.ServiceAuthInfoEntity;
 import com.oapps.osync.entity.ServiceInfoEntity;
 import com.oapps.osync.entity.SyncLogEntity;
 import com.oapps.osync.fields.Fields;
@@ -33,6 +34,7 @@ import com.oapps.osync.repository.DefaultFieldsRepo;
 import com.oapps.osync.repository.FieldMapRepository;
 import com.oapps.osync.repository.IntegrationPropsRepository;
 import com.oapps.osync.repository.ModuleInfoRepository;
+import com.oapps.osync.repository.ServiceAuthInfoRepository;
 import com.oapps.osync.repository.ServiceInfoRepository;
 import com.oapps.osync.security.CurrentContext;
 import com.oapps.osync.service.IntegrationService;
@@ -50,6 +52,9 @@ public class IntegrationController {
 
 	@Autowired
 	AccountInfoRepository accountRepo;
+	
+	@Autowired
+	ServiceAuthInfoRepository serviceAuthInfoRepo;
 
 	@Autowired
 	ServiceInfoRepository serviceRepo;
@@ -170,13 +175,25 @@ public class IntegrationController {
 		JSONObject payloadJson = new JSONObject(payload);
 		long masterService=payloadJson.optLong("masterService");
 		long syncDuration=payloadJson.optLong("syncDuration");
-		
+		long leftServiceId=payloadJson.optLong("leftServiceId");
+		long rightServiceId=payloadJson.optLong("rightServiceId");
+		long osyncId=payloadJson.optLong("osyncId");
+
+
+		IntegrationPropsEntity findByOsyncIdAndIntegId = intPropsRepo.findByOsyncIdAndIntegId(osyncId,integId);
+		FieldMapEntity findByOsyncIdAndIntegIdField = fieldMapRepo.findByOsyncIdAndIntegId(osyncId,integId);
+		ServiceAuthInfoEntity findTopByIntegIdAndLeftServiceId = serviceAuthInfoRepo.findTopByIntegIdAndServiceId(integId,leftServiceId);
+		ServiceAuthInfoEntity findTopByIntegIdAndRightServiceId = serviceAuthInfoRepo.findTopByIntegIdAndServiceId(integId,rightServiceId);
 		Optional<IntegrationPropsEntity> findById = intPropsRepo.findById(integId);
-		if (findById.isPresent()) {
+		if (findById.isPresent() ) {
+			if(findByOsyncIdAndIntegId!=null && findByOsyncIdAndIntegIdField!=null && findTopByIntegIdAndLeftServiceId!=null && findTopByIntegIdAndRightServiceId!=null) {	
+		
 			IntegrationPropsEntity integrationPropsEntity = findById.get();
 			integrationPropsEntity.setMasterService(masterService);
 			integrationPropsEntity.setSyncDuration(syncDuration);
+			integrationPropsEntity.setStatus(1);
 			return intPropsRepo.save(integrationPropsEntity);
+		}
 		}
 		return null;
 	}

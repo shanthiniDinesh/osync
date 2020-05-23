@@ -74,7 +74,7 @@ public class IntegrationPropsEntity {
 
 	@Getter
 	@Setter
-	private int status=1;
+	private int status=0;
 
 	@Getter
 	@Setter
