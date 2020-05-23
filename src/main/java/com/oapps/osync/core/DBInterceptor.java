@@ -52,7 +52,6 @@ public class DBInterceptor extends EmptyInterceptor {
 					// create new condition expression
 					EqualsTo equals = new EqualsTo();
 					equals.setLeftExpression(new Column(getName(table) + ".osync_id"));
-					log.warning("DBINTESDfasdfsad DINESH osyncId : " + osyncId);
 					equals.setRightExpression(new LongValue(osyncId));
 					// add and to the existing condition
 					Expression oldCondition = ps.getWhere();
@@ -88,7 +87,7 @@ public class DBInterceptor extends EmptyInterceptor {
 				Long osyncId = (Long) state[foundIndex];
 				Long currentOsyncId = CurrentContext.getCurrentOsyncId();
 				if (osyncId == null || currentOsyncId == null || currentOsyncId.longValue() != osyncId.longValue()) {
-//					throw new RuntimeException("Not allowed, Incorrect OsyncId");
+					throw new RuntimeException("Not allowed, Incorrect OsyncId");
 				}
 			}
 		}
@@ -112,7 +111,7 @@ public class DBInterceptor extends EmptyInterceptor {
 				Long osyncId = (Long) state[foundIndex];
 				Long currentOsyncId = CurrentContext.getCurrentOsyncId();
 				if (osyncId == null || currentOsyncId == null || currentOsyncId.longValue() != osyncId.longValue()) {
-//					throw new RuntimeException("Not allowed, Incorrect OsyncId");
+					throw new RuntimeException("Not allowed, Incorrect OsyncId");
 				}
 			}
 		}

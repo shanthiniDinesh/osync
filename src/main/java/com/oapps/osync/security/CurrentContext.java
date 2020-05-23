@@ -43,7 +43,7 @@ public class CurrentContext {
 	}
 
 	public static boolean isDBCheckDisabled() {
-		return true;
-//		return disableDBCheck.get();
+//		return true;
+		return disableDBCheck.get();
 	}
 }
