@@ -266,18 +266,11 @@ public class IntegrationController {
 			} else {
 				integInfoObj = findByServiceIds;
 			}
-<<<<<<< HEAD
 			//need to add authorization header
 			
 			integResponse.setId(integInfoObj.getIntegId()+"");
 			integResponse.setOsyncId(accInfoObject.getOsyncId()+"");
 			
-=======
-			// need to add authorization header
-
-			integResponse.setId(integInfoObj.getIntegId() + "");
-
->>>>>>> branch 'master' of https://andrewoapps@bitbucket.org/oappsxyz/osync.git
 			ServiceInfoEntity leftServiceAuthObj = serviceRepo.findByServiceId(integInfoObj.getLeftServiceId());
 
 			if (leftServiceAuthObj.getAuthType().equals("oauth")) {
@@ -292,7 +285,6 @@ public class IntegrationController {
 				leftAuthDetails.setType("oauth");
 				leftAuthDetails.setUrl(leftAuthUrl);
 
-<<<<<<< HEAD
 				
 				ServiceAuthInfoEntity byOsyncIdAndServiceIdAndIntegId = serviceAuthRepo.findByOsyncIdAndServiceIdAndIntegId(accInfoObject.getOsyncId(), leftServiceAuthObj.getServiceId(),integInfoObj.getIntegId());
 				if(byOsyncIdAndServiceIdAndIntegId == null) {
@@ -301,8 +293,6 @@ public class IntegrationController {
 					leftAuthDetails.setAuthorized(true);
 				}
 				
-=======
->>>>>>> branch 'master' of https://andrewoapps@bitbucket.org/oappsxyz/osync.git
 				leftServiceDetails.setAuthDetails(leftAuthDetails);
 
 				integResponse.setLeftDetails(leftServiceDetails);
@@ -325,7 +315,7 @@ public class IntegrationController {
 
 				rightServiceDetails.setAuthDetails(rightAuthDetails);
 
-<<<<<<< HEAD
+
 				ServiceAuthInfoEntity byOsyncIdAndServiceIdAndIntegId = serviceAuthRepo.findByOsyncIdAndServiceIdAndIntegId(accInfoObject.getOsyncId(), leftServiceAuthObj.getServiceId(),integInfoObj.getIntegId());
 				if(byOsyncIdAndServiceIdAndIntegId == null) {
 					rightAuthDetails.setAuthorized(false);
@@ -333,8 +323,6 @@ public class IntegrationController {
 					rightAuthDetails.setAuthorized(true);
 				}
 				
-=======
->>>>>>> branch 'master' of https://andrewoapps@bitbucket.org/oappsxyz/osync.git
 				integResponse.setRightDetails(rightServiceDetails);
 
 			}
@@ -359,21 +347,11 @@ public class IntegrationController {
 		String authorizeUrl = serviceAuthObj.getAuthorizeUrl();
 		String authScopes = serviceAuthObj.getAuthScopes();
 		String clientId = serviceAuthObj.getClientId();
-<<<<<<< HEAD
 		
 		String stateParam = intInfoObj.getOsyncId()+"::"+serviceAuthObj.getServiceId()+"::"+intInfoObj.getIntegId();
 		
 		url = authorizeUrl +"?response_type=code&client_id="+clientId+"&scope="+authScopes+"&redirect_uri="+AuthorizerUtil.redirectUrl+"&state="+stateParam;
 		url += "&access_type=offline";
-=======
-
-		String stateParam = intInfoObj.getOsyncId() + "::" + serviceAuthObj.getServiceId() + "::"
-				+ intInfoObj.getIntegId();
-
-		url = authorizeUrl + "?response_type=code&client_id=" + clientId + "&scope=" + authScopes + "&redirect_uri="
-				+ OSyncAuthorizerUtil.redirectUrl + "&state=" + stateParam;
-//		url += "&prompt=consent";
->>>>>>> branch 'master' of https://andrewoapps@bitbucket.org/oappsxyz/osync.git
 
 		return url;
 	}

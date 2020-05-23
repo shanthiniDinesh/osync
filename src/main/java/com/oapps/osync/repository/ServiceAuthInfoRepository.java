@@ -1,8 +1,7 @@
 package com.oapps.osync.repository;
 
-import java.util.Optional;
-
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.oapps.osync.entity.ServiceAuthInfoEntity;
 
@@ -12,7 +11,7 @@ public interface ServiceAuthInfoRepository extends CrudRepository<ServiceAuthInf
 	
 	ServiceAuthInfoEntity findTopByOsyncIdAndServiceId(Long osyncId, Long serviceId);
 	
-	ServiceAuthInfoEntity getByOsyncIdAndServiceId(Long osyncId, Long serviceId);
+	ServiceAuthInfoEntity findTopByIntegIdAndServiceId(Long osyncId, Long serviceId);
 	
 	ServiceAuthInfoEntity findByOsyncUserId(Long osyncUserId);
 	
