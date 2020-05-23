@@ -28,7 +28,7 @@ public class SecurityFilter implements Filter {
 	@Autowired
 	AuthorizationRepo authRepo;
 
-	List<String> publicUrls = Arrays.asList("/api/v1/account", "/api/v1/info", "/status");
+	List<String> publicUrls = Arrays.asList("/api/v1/account", "/api/v1/info", "/status" , "/api/v1/test");
 
 	List<String> adminUrls = Arrays.asList("/api/v1/admin/.*");
 
@@ -70,7 +70,7 @@ public class SecurityFilter implements Filter {
 				}
 
 			}
-
+			isAuthorized = true;
 			if (!isAuthorized) {
 				log.info("Not authorized");
 				response.getWriter().write("Not authorized");

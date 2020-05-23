@@ -1,7 +1,8 @@
 package com.oapps.osync.repository;
 
+import java.util.Optional;
+
 import org.springframework.data.repository.CrudRepository;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.oapps.osync.entity.ServiceAuthInfoEntity;
 

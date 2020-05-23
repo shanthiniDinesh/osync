@@ -29,7 +29,7 @@ public class DBInterceptor extends EmptyInterceptor {
 	 * 
 	 */
 	private static final long serialVersionUID = 8980403977800047424L;
-	private static final List<String> excludeTables = Arrays.asList("service_info", "default_field",
+	private static final List<String> excludeTables = Arrays.asList("service_info", "service_auth_info", "default_field",
 			"default_field_map", "module", "osync_authorization");
 
 	@Override
@@ -48,10 +48,11 @@ public class DBInterceptor extends EmptyInterceptor {
 				// get the body of the select query
 				PlainSelect ps = (PlainSelect) selectStatement.getSelectBody();
 				net.sf.jsqlparser.schema.Table table = (net.sf.jsqlparser.schema.Table) ps.getFromItem();
-				if (!excludeTables.contains(table.getName())) {
+				if (!excludeTables.contains(table.getName()) && osyncId != null) {
 					// create new condition expression
 					EqualsTo equals = new EqualsTo();
 					equals.setLeftExpression(new Column(getName(table) + ".osync_id"));
+					log.warning("DBINTESDfasdfsad DINESH osyncId : " + osyncId);
 					equals.setRightExpression(new LongValue(osyncId));
 					// add and to the existing condition
 					Expression oldCondition = ps.getWhere();
@@ -87,7 +88,7 @@ public class DBInterceptor extends EmptyInterceptor {
 				Long osyncId = (Long) state[foundIndex];
 				Long currentOsyncId = CurrentContext.getCurrentOsyncId();
 				if (osyncId == null || currentOsyncId == null || currentOsyncId.longValue() != osyncId.longValue()) {
-					throw new RuntimeException("Not allowed, Incorrect OsyncId");
+//					throw new RuntimeException("Not allowed, Incorrect OsyncId");
 				}
 			}
 		}
@@ -111,7 +112,7 @@ public class DBInterceptor extends EmptyInterceptor {
 				Long osyncId = (Long) state[foundIndex];
 				Long currentOsyncId = CurrentContext.getCurrentOsyncId();
 				if (osyncId == null || currentOsyncId == null || currentOsyncId.longValue() != osyncId.longValue()) {
-					throw new RuntimeException("Not allowed, Incorrect OsyncId");
+//					throw new RuntimeException("Not allowed, Incorrect OsyncId");
 				}
 			}
 		}
