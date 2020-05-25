@@ -1,11 +1,13 @@
 package com.oapps.osync.repository;
 
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.oapps.osync.entity.ServiceAuthInfoEntity;
 
-public interface ServiceAuthInfoRepository extends CrudRepository<ServiceAuthInfoEntity, Integer> {
+@Repository
+public interface ServiceAuthInfoRepository extends CrudRepository<ServiceAuthInfoEntity, Long> {
 
 	ServiceAuthInfoEntity findByServiceId(Long serviceId);
 	

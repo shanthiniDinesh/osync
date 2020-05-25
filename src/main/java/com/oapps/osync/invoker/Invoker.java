@@ -3,16 +3,16 @@ package com.oapps.osync.invoker;
 import java.util.Iterator;
 
 import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
 
 import org.json.JSONObject;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.oapps.osync.bean.BeanUtil;
 import com.oapps.osync.entity.ServiceAuthInfoEntity;
 import com.oapps.osync.entity.ServiceInfoEntity;
 import com.oapps.osync.repository.ServiceAuthInfoRepository;
+import com.oapps.osync.repository.ServiceInfoRepository;
 import com.oapps.osync.util.AuthorizerUtil;
 import com.oapps.osync.util.JPAUtil;
 import com.sun.jersey.api.client.Client;
@@ -23,15 +23,8 @@ import com.sun.jersey.api.client.WebResource.Builder;
 import lombok.extern.java.Log;
 
 @Log
-@Transactional
 public class Invoker {
 
-
-	@Autowired
-	ServiceAuthInfoRepository serviceAuthRepo;
-
-	@PersistenceContext
-	private EntityManager entityManager;
 
 	private Client client;
 	private Long authId;
@@ -40,6 +33,20 @@ public class Invoker {
 		super();
 		this.client = Client.create();
 		this.authId = authId;
+	}
+	
+	@Bean
+	public void query() {
+		log.info("query result :: " + getServiceInfo().findAll());
+		log.info("output...." + getServiceInfo().count());
+	}
+
+	private ServiceAuthInfoRepository getServiceAuthInfo() {
+		return BeanUtil.getBean(ServiceAuthInfoRepository.class);
+	}
+	
+	private ServiceInfoRepository getServiceInfo() {
+		return BeanUtil.getBean(ServiceInfoRepository.class);
 	}
 
 	public String get(String targetUrl ,JSONObject headerJson,JSONObject queryParams){
@@ -69,9 +76,9 @@ public class Invoker {
 //		public List<Map<String, Object>> listUsers() {
 //		    return jdbcTemplate.queryForList("SELECT * FROM user;");
 //		}
-		entityManager = BeanUtil.getBean(EntityManager.class);
+//		entityManager = BeanUtil.getBean(EntityManager.class);
 		if(this.authId != null) {
-			serviceAuth = entityManager.find(ServiceAuthInfoEntity.class, this.authId);
+			serviceAuth = getServiceAuthInfo().findById(this.authId).get();
 			if(serviceAuth != null && serviceAuth.getAccessToken() != null && !serviceAuth.getAccessToken().isEmpty()) {
 				requestBuilder.header("Authorization", "Bearer "+serviceAuth.getAccessToken());
 			}
@@ -79,7 +86,7 @@ public class Invoker {
 
 		ClientResponse clientResponse = requestBuilder.get(ClientResponse.class);
 		if(clientResponse.getStatus() == 401 && serviceAuth != null) {
-			ServiceInfoEntity serviceInfo = entityManager.find(ServiceInfoEntity.class, serviceAuth.getServiceId());
+			ServiceInfoEntity serviceInfo = getServiceInfo().findByServiceId(serviceAuth.getServiceId());
 			String refreshTokenResp = AuthorizerUtil.getAccessTokenUsingRefreshToken(serviceInfo, serviceAuth, this.authId);
 			JSONObject refreshTokenObj = new JSONObject(refreshTokenResp);
 
@@ -92,7 +99,6 @@ public class Invoker {
 		} else {
 			response = clientResponse.getEntity(String.class);
 		}
-		entityManager.close();
 		log.info("response >>>>>>"+response);
 		log.info("clientResponse.getStatus(); >>>>>>"+clientResponse.getStatus());
 		return response;
@@ -121,7 +127,7 @@ public class Invoker {
 				requestBuilder.header(key, value);
 			}
 		}
-		EntityManager entityManager = BeanUtil.getBean(EntityManager.class);
+		EntityManager entityManager = null; //BeanUtil.getBean(EntityManager.class);
 		if(this.authId != null) {
 			serviceAuth = entityManager.find(ServiceAuthInfoEntity.class, this.authId);
 			if(serviceAuth != null && serviceAuth.getAccessToken() != null && !serviceAuth.getAccessToken().isEmpty()) {
@@ -141,7 +147,7 @@ public class Invoker {
 
 	public ServiceAuthInfoEntity getServiceAuthInfo( Long osyncId ,  Long serviceId ,  Long integId) {
 		log.info(" chekcing the osyncId >>>>>"+osyncId+":::::: serviceId>>>>>"+serviceId+":::::: integId >>>>>>"+integId);
-		return serviceAuthRepo.findByOsyncIdAndServiceIdAndIntegId(osyncId,serviceId,integId );
+		return getServiceAuthInfo().findByOsyncIdAndServiceIdAndIntegId(osyncId,serviceId,integId );
 	}
 
 	public static void main(String[] args) {

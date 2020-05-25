@@ -38,17 +38,12 @@ public class DBInterceptor extends EmptyInterceptor {
 
 		if (op.trim().toLowerCase().startsWith("select")) {
 			Long osyncId = CurrentContext.getCurrentOsyncId();
-			if (!CurrentContext.isDBCheckDisabled()
-					&& (CurrentContext.isDBCheckDisabled() || osyncId == null || osyncId == -1)) {
-				log.warning("REJECTING sql since Osync ID not set : " + sql);
-				throw new RuntimeException("Osync Id not set in credentials. ");
-			}
 			try {
 				Select selectStatement = (Select) CCJSqlParserUtil.parse(sql);
 				// get the body of the select query
 				PlainSelect ps = (PlainSelect) selectStatement.getSelectBody();
 				net.sf.jsqlparser.schema.Table table = (net.sf.jsqlparser.schema.Table) ps.getFromItem();
-				if (!excludeTables.contains(table.getName()) && osyncId != null) {
+				if (!excludeTables.contains(table.getName())) {
 					// create new condition expression
 					EqualsTo equals = new EqualsTo();
 					equals.setLeftExpression(new Column(getName(table) + ".osync_id"));
