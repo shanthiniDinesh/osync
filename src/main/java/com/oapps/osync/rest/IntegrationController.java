@@ -316,7 +316,7 @@ public class IntegrationController {
 				rightServiceDetails.setAuthDetails(rightAuthDetails);
 
 
-				ServiceAuthInfoEntity byOsyncIdAndServiceIdAndIntegId = serviceAuthRepo.findByOsyncIdAndServiceIdAndIntegId(accInfoObject.getOsyncId(), leftServiceAuthObj.getServiceId(),integInfoObj.getIntegId());
+				ServiceAuthInfoEntity byOsyncIdAndServiceIdAndIntegId = serviceAuthRepo.findByOsyncIdAndServiceIdAndIntegId(accInfoObject.getOsyncId(), rightServiceAuthObj.getServiceId(),integInfoObj.getIntegId());
 				if(byOsyncIdAndServiceIdAndIntegId == null) {
 					rightAuthDetails.setAuthorized(false);
 				} else {
