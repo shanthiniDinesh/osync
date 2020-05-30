@@ -83,12 +83,12 @@ public class SyncLogEntity {
 	@Setter
 	@Column()
 	private Integer leftCountUpdated = 0;
-	
+
 	@Getter
 	@Setter
 	@Column()
 	private Integer leftNoChangeCount = 0;
-	
+
 	@Getter
 	@Setter
 	@Column()
@@ -125,6 +125,14 @@ public class SyncLogEntity {
 	@Getter
 	@Setter
 	private Integer rightCountCreated = 0;
+
+	private Integer totalCountFetched = 0;
+
+	private Integer totalCountUpdated = 0;
+
+	private Integer totalCountNoChangeCount = 0;
+
+	private Integer totalCountCreated = 0;
 
 	@Getter
 	@Setter
@@ -184,4 +192,71 @@ public class SyncLogEntity {
 			setRightNoChangeCount(getRightNoChangeCount() + 1);
 		}
 	}
+
+	public Integer getTotalCountFetched() {
+		if (this.leftCountFetched != null && this.rightCountFetched != null) {
+			return this.totalCountFetched = this.leftCountFetched + this.rightCountFetched;
+		}
+		if (this.leftCountFetched != null) {
+			return this.leftCountFetched;
+		} else if (this.rightCountFetched != null) {
+			return this.rightCountFetched;
+		}
+		return null;
+	}
+
+	public void setTotalCountFetched(Integer totalCount) {
+
+	}
+
+	public Integer getTotalCountUpdated() {
+
+		if (this.leftCountUpdated != null && this.rightCountUpdated != null) {
+			return this.totalCountUpdated = this.leftCountUpdated + this.rightCountUpdated;
+		}
+		if (this.leftCountUpdated != null) {
+			return this.leftCountUpdated;
+		} else if (this.rightCountUpdated != null) {
+			return this.rightCountUpdated;
+		}
+		return null;
+	}
+
+	public void setTotalCountUpdated(Integer totalCountUpdated) {
+
+	}
+
+	public Integer getTotalCountNoChangeCount() {
+
+		if (this.leftNoChangeCount != null && this.rightNoChangeCount != null) {
+			return this.totalCountNoChangeCount = this.leftNoChangeCount + this.rightCountUpdated;
+		}
+		if (this.leftNoChangeCount != null) {
+			return this.leftNoChangeCount;
+		} else if (this.rightNoChangeCount != null) {
+			return this.rightNoChangeCount;
+		}
+		return null;
+	}
+
+	public void setTotalCountNoChangeCount(Integer totalCountNoChangeCount) {
+		this.totalCountNoChangeCount = totalCountNoChangeCount;
+	}
+
+	public Integer getTotalCountCreated() {
+		if (this.leftCountCreated != null && this.rightCountCreated != null) {
+			return this.totalCountCreated = this.leftCountCreated + this.rightCountCreated;
+		}
+		if (this.leftCountCreated != null) {
+			return this.leftCountCreated;
+		} else if (this.rightCountCreated != null) {
+			return this.rightCountCreated;
+		}
+		return null;
+	}
+
+	public void setTotalCountCreated(Integer totalCountCreated) {
+		this.totalCountCreated = totalCountCreated;
+	}
+
 }

@@ -10,6 +10,7 @@ import com.sun.jersey.api.client.Client;
 import com.sun.jersey.api.client.ClientResponse;
 import com.sun.jersey.api.client.WebResource;
 
+
 public class AuthorizerUtil {
 
 	public static final String redirectUrl = "https://f7a53203.ngrok.io/api/v1/redirect";

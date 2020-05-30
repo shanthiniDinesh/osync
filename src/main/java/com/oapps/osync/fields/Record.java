@@ -7,6 +7,8 @@ import org.json.JSONObject;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationConfig;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -50,6 +52,7 @@ public class Record {
 	public JSONObject columnValuesAsJson() throws JsonProcessingException {
 		ObjectMapper mapper = new ObjectMapper();
 		mapper.setSerializationInclusion(Include.NON_NULL);
+		mapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
 		return new JSONObject(mapper.writeValueAsString(columnValues));
 	}
 

@@ -17,6 +17,12 @@ public class Fields {
 	List<NumberField> numberFields = new ArrayList<NumberField>();
 	@Getter
 	List<BooleanField> booleanFields = new ArrayList<BooleanField>();
+	
+	@Getter
+	List<DoubleField> doubleFields=new ArrayList<DoubleField>();
+	
+	
+	
 
 	public class TextField extends Field {
 		public TextField(String id, String displayName) {
@@ -36,6 +42,12 @@ public class Fields {
 			super("boolean", id, displayName);
 		}
 	}
+	
+	public class DoubleField extends Field {
+		public DoubleField(String id, String displayName) {
+			super("Double", id, displayName);
+		}
+	}
 
 	public void addTextField(TextField tf) {
 		textFields.add(tf);
@@ -48,6 +60,13 @@ public class Fields {
 	public void addBooleanField(BooleanField bf) {
 		booleanFields.add(bf);
 	}
+	
+	public void addDoubleField(DoubleField df) {
+		doubleFields.add(df);
+	}
+	
+	
+	
 
 	public Fields number(String id, String displayName) {
 		NumberField nf = new NumberField(id, displayName);
@@ -66,4 +85,13 @@ public class Fields {
 		this.addBooleanField(nf);
 		return this;
 	}
+	
+	public Fields doublee(String id, String displayName) {
+		DoubleField df = new DoubleField(id, displayName);
+		this.addDoubleField(df);
+		return this;
+	}
+	
+	
+	
 }
