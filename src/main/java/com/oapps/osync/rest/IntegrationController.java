@@ -183,7 +183,7 @@ public class IntegrationController {
 		long osyncId=payloadJson.optLong("osyncId");
 
 
-		IntegrationPropsEntity findByOsyncIdAndIntegId = intPropsRepo.findByOsyncIdAndIntegId(osyncId,integId);
+		IntegrationPropsEntity findByOsyncIdAndIntegId = intPropsRepo.findTopByOsyncIdAndIntegId(osyncId,integId);
 		FieldMapEntity findByOsyncIdAndIntegIdField = fieldMapRepo.findByOsyncIdAndIntegId(osyncId,integId);
 		ServiceAuthInfoEntity findTopByIntegIdAndLeftServiceId = serviceAuthInfoRepo.findTopByIntegIdAndServiceId(integId,leftServiceId);
 		ServiceAuthInfoEntity findTopByIntegIdAndRightServiceId = serviceAuthInfoRepo.findTopByIntegIdAndServiceId(integId,rightServiceId);
