@@ -28,7 +28,7 @@ public class SecurityFilter implements Filter {
 	@Autowired
 	AuthorizationRepo authRepo;
 
-	List<String> publicUrls = Arrays.asList("/api/v1/account", "/api/v1/info", "/status");
+	List<String> publicUrls = Arrays.asList("/api/v1/account","/api/v1/integrate","/api/v1/redirect", "/api/v1/info", "/status");
 
 	List<String> adminUrls = Arrays.asList("/api/v1/admin/.*");
 
@@ -52,6 +52,15 @@ public class SecurityFilter implements Filter {
 
 			boolean isAdmin = false;
 			boolean isAuthorized = false;
+			((HttpServletResponse) sresponse).addHeader("Access-Control-Allow-Origin", "*");
+	        ((HttpServletResponse) sresponse).addHeader("Access-Control-Allow-Methods","GET, OPTIONS, HEAD, PUT, POST,DELETE");
+	        ((HttpServletResponse) sresponse).addHeader("Access-Control-Allow-Headers","*");
+	        
+	     // For HTTP OPTIONS verb/method reply with ACCEPTED status code -- per CORS handshake
+		     if (request.getMethod().equals("OPTIONS")) {
+		    	 response.setStatus(HttpServletResponse.SC_ACCEPTED);
+		         return;
+		     }
 
 			if (isPublicUrl) {
 				isAuthorized = true;
@@ -70,7 +79,10 @@ public class SecurityFilter implements Filter {
 				}
 
 			}
-//			isAuthorized = true;
+//			isAuthorized = false;
+//			isAdmin = true;
+//			isAdminUrl = true;
+
 			if (!isAuthorized) {
 				log.info("Not authorized");
 				response.getWriter().write("Not authorized");
