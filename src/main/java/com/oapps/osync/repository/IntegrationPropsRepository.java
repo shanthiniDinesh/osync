@@ -14,6 +14,8 @@ public interface IntegrationPropsRepository extends JpaRepository<IntegrationPro
 
 	IntegrationPropsEntity findTopByOsyncIdAndLeftServiceIdAndRightServiceId(Long osyncId, Long leftServiceId , Long rightServiceId);
 	
-	IntegrationPropsEntity save(IntegrationPropsEntity intInfoObj);		
+	IntegrationPropsEntity save(IntegrationPropsEntity intInfoObj);	
+	
+	IntegrationPropsEntity findTopByOsyncIdAndIntegId(Long osyncId, Long integId);
 	
 }
