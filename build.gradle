@@ -37,7 +37,8 @@ dependencies {
 	implementation 'com.zoho.crm:java-sdk:2.0.3'
   compile(
     'com.github.jsqlparser:jsqlparser:3.1',
-    'com.sun.jersey:jersey-client:1.19.4'
+    'com.sun.jersey:jersey-client:1.19.4',
+    'org.json:json:20171018'
   )
   
 }

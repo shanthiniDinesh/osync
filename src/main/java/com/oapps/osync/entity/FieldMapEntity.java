@@ -62,4 +62,8 @@ public class FieldMapEntity {
 	@Temporal(TemporalType.TIMESTAMP)
 	@UpdateTimestamp
 	private Date modifiedTime;
+	
+	@Getter
+	@Setter
+	private int  isEnabled;
 }
