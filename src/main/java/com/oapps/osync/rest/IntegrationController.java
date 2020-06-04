@@ -40,6 +40,7 @@ import com.oapps.osync.security.CurrentContext;
 import com.oapps.osync.service.IntegrationService;
 import com.oapps.osync.service.OsyncException;
 import com.oapps.osync.util.IntegrationResponse;
+import com.oapps.osync.util.PageDetails;
 import com.oapps.osync.util.AuthorizerUtil;
 
 import lombok.extern.java.Log;
@@ -174,32 +175,78 @@ public class IntegrationController {
 	
 	@PostMapping(path = "/api/v1/integration/{integ_id}/start-sync", consumes = "application/json", produces = "application/json")
 	public @ResponseBody IntegrationPropsEntity startSync(@PathVariable("integ_id") Long integId,@RequestBody String payload) {
-		
+
 		JSONObject payloadJson = new JSONObject(payload);
 		long masterService=payloadJson.optLong("masterService");
 		long syncDuration=payloadJson.optLong("syncDuration");
-		long leftServiceId=payloadJson.optLong("leftServiceId");
-		long rightServiceId=payloadJson.optLong("rightServiceId");
 		long osyncId=payloadJson.optLong("osyncId");
 
 
 		IntegrationPropsEntity findByOsyncIdAndIntegId = intPropsRepo.findTopByOsyncIdAndIntegId(osyncId,integId);
-		FieldMapEntity findByOsyncIdAndIntegIdField = fieldMapRepo.findByOsyncIdAndIntegId(osyncId,integId);
+		long leftServiceId = findByOsyncIdAndIntegId.getLeftServiceId();
+		long rightServiceId = findByOsyncIdAndIntegId.getRightServiceId();
+		FieldMapEntity findByOsyncIdAndIntegIdField = fieldMapRepo.findTopByOsyncIdAndIntegId(osyncId,integId);
 		ServiceAuthInfoEntity findTopByIntegIdAndLeftServiceId = serviceAuthInfoRepo.findTopByIntegIdAndServiceId(integId,leftServiceId);
 		ServiceAuthInfoEntity findTopByIntegIdAndRightServiceId = serviceAuthInfoRepo.findTopByIntegIdAndServiceId(integId,rightServiceId);
 		Optional<IntegrationPropsEntity> findById = intPropsRepo.findById(integId);
 		if (findById.isPresent() ) {
-			if(findByOsyncIdAndIntegId!=null && findByOsyncIdAndIntegIdField!=null && findTopByIntegIdAndLeftServiceId!=null && findTopByIntegIdAndRightServiceId!=null) {	
-		
 			IntegrationPropsEntity integrationPropsEntity = findById.get();
 			integrationPropsEntity.setMasterService(masterService);
 			integrationPropsEntity.setSyncDuration(syncDuration);
-			integrationPropsEntity.setStatus(1);
-			return intPropsRepo.save(integrationPropsEntity);
-		}
+			if(findByOsyncIdAndIntegId!=null && findByOsyncIdAndIntegIdField!=null && findTopByIntegIdAndLeftServiceId!=null && findTopByIntegIdAndRightServiceId!=null) {	
+				integrationPropsEntity.setStatus(1);
+				return intPropsRepo.save(integrationPropsEntity);
+			}
+			else
+			{
+				integrationPropsEntity.setStatus(0);
+				return intPropsRepo.save(integrationPropsEntity);
+
+			}
 		}
 		return null;
 	}
+
+
+
+	@GetMapping(path = "/api/v1/integration/{integ_id}/get-page")
+	public @ResponseBody PageDetails getPage(@PathVariable("integ_id") Long integId,@RequestParam("osync_id") Long osyncId) {
+
+		IntegrationPropsEntity findTopByOsyncIdAndIntegId = intPropsRepo.findTopByOsyncIdAndIntegId(osyncId,integId);
+		long leftServiceId = findTopByOsyncIdAndIntegId.getLeftServiceId();
+		long rightServiceId = findTopByOsyncIdAndIntegId.getRightServiceId();
+		ModuleInfoEntity findByServiceIdLeft = moduleMapRepo.findTopByServiceId(leftServiceId);
+		ModuleInfoEntity findByServiceIdRight = moduleMapRepo.findTopByServiceId(rightServiceId);
+		FieldMapEntity findTopByOsyncIdAndIntegIdField = fieldMapRepo.findTopByOsyncIdAndIntegId(osyncId,integId);
+		ServiceAuthInfoEntity findTopByIntegIdAndLeftServiceId = serviceAuthInfoRepo.findTopByIntegIdAndServiceId(integId,leftServiceId);
+		ServiceAuthInfoEntity findTopByIntegIdAndRightServiceId = serviceAuthInfoRepo.findTopByIntegIdAndServiceId(integId,rightServiceId);
+		Optional<IntegrationPropsEntity> findById = intPropsRepo.findById(integId);
+		PageDetails page=new PageDetails();
+		if (findById.isPresent() ) {
+
+			page.setAuthorization_page(false);
+			page.setModule_page(false);
+			page.setField_page(false);
+			page.setConfiguration_page(false);
+
+			if(findTopByIntegIdAndLeftServiceId!=null && findTopByIntegIdAndRightServiceId!=null) { 
+				page.setAuthorization_page(true);
+			}	
+			if(findByServiceIdLeft!=null && findByServiceIdRight!=null ) {
+				page.setModule_page(true);
+			}
+			if(findTopByOsyncIdAndIntegIdField!=null) {
+				page.setField_page(true);
+
+			}
+			if(findTopByOsyncIdAndIntegId!=null) {
+				page.setConfiguration_page(true);
+
+			}
+
+		}
+		return page;
+	} 
 	
 	
 	@GetMapping(path = "/api/v1/integration/{integ_id}")

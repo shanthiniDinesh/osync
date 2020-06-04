@@ -16,4 +16,6 @@ public interface FieldMapRepository extends JpaRepository<FieldMapEntity, Long> 
 	Optional<FieldMapEntity> findByIntegId(long integId);
 	FieldMapEntity findByOsyncIdAndIntegId(long osyncId,long integId);
 
+	FieldMapEntity findTopByOsyncIdAndIntegId(Long osyncId, Long integId);
+
 }
