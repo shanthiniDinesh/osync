@@ -185,6 +185,8 @@ public class IntegrationController {
 		IntegrationPropsEntity findByOsyncIdAndIntegId = intPropsRepo.findTopByOsyncIdAndIntegId(osyncId,integId);
 		long leftServiceId = findByOsyncIdAndIntegId.getLeftServiceId();
 		long rightServiceId = findByOsyncIdAndIntegId.getRightServiceId();
+		IntegrationPropsEntity findTopByMasterService = intPropsRepo.findTopByMasterService(masterService);
+
 		FieldMapEntity findByOsyncIdAndIntegIdField = fieldMapRepo.findTopByOsyncIdAndIntegId(osyncId,integId);
 		ServiceAuthInfoEntity findTopByIntegIdAndLeftServiceId = serviceAuthInfoRepo.findTopByIntegIdAndServiceId(integId,leftServiceId);
 		ServiceAuthInfoEntity findTopByIntegIdAndRightServiceId = serviceAuthInfoRepo.findTopByIntegIdAndServiceId(integId,rightServiceId);
@@ -193,7 +195,7 @@ public class IntegrationController {
 			IntegrationPropsEntity integrationPropsEntity = findById.get();
 			integrationPropsEntity.setMasterService(masterService);
 			integrationPropsEntity.setSyncDuration(syncDuration);
-			if(findByOsyncIdAndIntegId!=null && findByOsyncIdAndIntegIdField!=null && findTopByIntegIdAndLeftServiceId!=null && findTopByIntegIdAndRightServiceId!=null) {	
+			if(findTopByMasterService!=null && findByOsyncIdAndIntegIdField!=null && findTopByIntegIdAndLeftServiceId!=null && findTopByIntegIdAndRightServiceId!=null) {	
 				integrationPropsEntity.setStatus(1);
 				return intPropsRepo.save(integrationPropsEntity);
 			}
@@ -215,8 +217,14 @@ public class IntegrationController {
 		IntegrationPropsEntity findTopByOsyncIdAndIntegId = intPropsRepo.findTopByOsyncIdAndIntegId(osyncId,integId);
 		long leftServiceId = findTopByOsyncIdAndIntegId.getLeftServiceId();
 		long rightServiceId = findTopByOsyncIdAndIntegId.getRightServiceId();
-		ModuleInfoEntity findByServiceIdLeft = moduleMapRepo.findTopByServiceId(leftServiceId);
-		ModuleInfoEntity findByServiceIdRight = moduleMapRepo.findTopByServiceId(rightServiceId);
+		long leftModuleId = findTopByOsyncIdAndIntegId.getLeftModuleId();
+		long rightModuleId = findTopByOsyncIdAndIntegId.getRightModuleId();
+		long masterService = findTopByOsyncIdAndIntegId.getMasterService();
+
+		IntegrationPropsEntity findTopByModuleIdLeft = intPropsRepo.findTopByLeftModuleId(leftModuleId);
+		IntegrationPropsEntity findTopByModuleIdRight = intPropsRepo.findTopByRightModuleId(rightModuleId);
+		IntegrationPropsEntity findTopByMasterService = intPropsRepo.findTopByMasterService(masterService);
+
 		FieldMapEntity findTopByOsyncIdAndIntegIdField = fieldMapRepo.findTopByOsyncIdAndIntegId(osyncId,integId);
 		ServiceAuthInfoEntity findTopByIntegIdAndLeftServiceId = serviceAuthInfoRepo.findTopByIntegIdAndServiceId(integId,leftServiceId);
 		ServiceAuthInfoEntity findTopByIntegIdAndRightServiceId = serviceAuthInfoRepo.findTopByIntegIdAndServiceId(integId,rightServiceId);
@@ -229,17 +237,18 @@ public class IntegrationController {
 			page.setField_page(false);
 			page.setConfiguration_page(false);
 
-			if(findTopByIntegIdAndLeftServiceId!=null && findTopByIntegIdAndRightServiceId!=null) { 
+			if(findTopByIntegIdAndLeftServiceId!=null && findTopByIntegIdAndRightServiceId!=null && leftServiceId!=0 && rightServiceId != 0 ) { 
 				page.setAuthorization_page(true);
 			}	
-			if(findByServiceIdLeft!=null && findByServiceIdRight!=null ) {
+			if(findTopByModuleIdLeft!=null && findTopByModuleIdRight!=null && leftModuleId!=0 && rightModuleId!=0) {
 				page.setModule_page(true);
 			}
 			if(findTopByOsyncIdAndIntegIdField!=null) {
 				page.setField_page(true);
 
 			}
-			if(findTopByOsyncIdAndIntegId!=null) {
+			
+			if(findTopByMasterService!=null && masterService != 0 ) {
 				page.setConfiguration_page(true);
 
 			}
