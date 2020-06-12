@@ -20,4 +20,5 @@ public interface ModuleInfoRepository extends CrudRepository<ModuleInfoEntity, L
 
 	ModuleInfoEntity findTopByServiceId(long leftServiceId);
 
+	
 }

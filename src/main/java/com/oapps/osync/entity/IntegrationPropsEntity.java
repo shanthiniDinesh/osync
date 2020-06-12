@@ -99,7 +99,6 @@ public class IntegrationPropsEntity {
 	@Getter
 	@Setter
 	private List<FieldMapEntity> fields;
-
 	
 
 }

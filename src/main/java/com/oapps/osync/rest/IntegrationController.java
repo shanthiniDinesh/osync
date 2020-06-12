@@ -220,6 +220,13 @@ public class IntegrationController {
 		long leftModuleId = findTopByOsyncIdAndIntegId.getLeftModuleId();
 		long rightModuleId = findTopByOsyncIdAndIntegId.getRightModuleId();
 		long masterService = findTopByOsyncIdAndIntegId.getMasterService();
+		
+		log.info("leftServiceId..."+leftServiceId);
+		log.info("rightServiceId..."+rightServiceId);
+		log.info("leftModuleId..."+leftModuleId);
+		log.info("rightModuleId..."+rightModuleId);
+		log.info("masterService..."+masterService);
+
 
 		IntegrationPropsEntity findTopByModuleIdLeft = intPropsRepo.findTopByLeftModuleId(leftModuleId);
 		IntegrationPropsEntity findTopByModuleIdRight = intPropsRepo.findTopByRightModuleId(rightModuleId);
